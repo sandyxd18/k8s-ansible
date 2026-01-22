@@ -1,0 +1,61 @@
+---
+# Kubernetes Configuration
+kubernetes_version: "1.28.0"
+kubernetes_version_rhel_package: "1.28.0-0"
+
+cluster_name: "example-test"
+
+# Pod Network CIDR
+pod_network_cidr: "10.244.0.0/16"
+control_plane_endpoint: "10.0.0.100:6443"
+apiserver_advertise_address: "10.0.0.100"
+
+# CNI Plugin Selection (calico, flannel, weave, cilium)
+cni_plugin: "calico"
+
+# Calico specific settings
+calico_version: "v3.26.1"
+
+# Flannel specific settings
+flannel_version: "v0.22.0"
+
+# Cilium specific settings
+cilium_version: "1.18.6"
+
+# Addons Configuration
+addons:
+  # Helm
+  helm:
+    enabled: false
+    version: "v3.17.3"
+  
+  # MetalLB Load Balancer
+  metallb:
+    enabled: false
+    version: "v0.13.10"
+    ip_range: "192.168.1.240-192.168.1.250"
+  
+  # OpenEBS Storage Provider
+  openebs:
+    enabled: false
+    # version: "3.7.0"
+  
+  # Metrics Server
+  metrics_server:
+    enabled: false
+    version: "v0.8.0"
+
+  # ArgoCD non-HA
+  argocd:
+    enabled: false
+    version: "v3.2.5"
+
+# Containerd Configuration
+# containerd_version: "1.7.2"
+
+# System Configuration
+disable_swap: true
+enable_ipv4_forwarding: true
+
+# Firewall Configuration (for firewalld on RHEL/CentOS)
+configure_firewall: false

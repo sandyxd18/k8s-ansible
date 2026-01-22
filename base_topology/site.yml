@@ -1,0 +1,27 @@
+---
+- name: Prepare all nodes
+  hosts: k8s_cluster
+  gather_facts: yes
+  roles:
+    - common
+    - container-runtime
+    - kubernetes
+
+- name: Setup Kubernetes Master
+  hosts: master
+  gather_facts: yes
+  roles:
+    - master
+    - cni
+
+- name: Join Worker Nodes
+  hosts: workers
+  gather_facts: yes
+  roles:
+    - worker
+
+- name: Deploy Addons
+  hosts: master
+  gather_facts: yes
+  roles:
+    - addons

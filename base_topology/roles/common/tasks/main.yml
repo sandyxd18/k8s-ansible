@@ -1,0 +1,121 @@
+---
+- name: Update apt cache (Debian/Ubuntu)
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Install required packages (Debian/Ubuntu)
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - net-tools
+      - vim
+    state: present
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Install required packages (CentOS)
+  yum:
+    name:
+      - yum-utils
+      - device-mapper-persistent-data
+      - lvm2
+      - curl
+      - net-tools
+      - vim
+    state: present
+  when: 
+    - ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Install required packages (RedHat)
+  dnf:
+    name:
+      - yum-utils
+      - device-mapper-persistent-data
+      - lvm2
+      - curl
+      - net-tools
+      - vim
+    state: present
+  when: 
+    - ansible_facts['distribution'] == 'RedHat'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Disable swap
+  shell: swapoff -a
+  when: disable_swap | bool
+
+- name: Remove swap from fstab
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+  when: disable_swap | bool
+
+- name: Create an empty file for the containerd module
+  copy:
+    content: ""
+    dest: /etc/modules-load.d/containerd.conf
+    force: no
+
+- name: Configure modules for containerd
+  blockinfile:
+    path: /etc/modules-load.d/containerd.conf
+    block: |
+      overlay
+      br_netfilter
+
+- name: Create an empty file for K8s sysctl parameters
+  copy:
+    content: ""
+    dest: /etc/sysctl.d/k8s.conf
+    force: no
+
+- name: Configure sysctl parameters for K8s
+  lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: "{{ item }}"
+  with_items:
+    - "net.bridge.bridge-nf-call-iptables  = 1"
+    - "net.ipv4.ip_forward                 = 1"
+    - "net.bridge.bridge-nf-call-ip6tables = 1"
+
+- name: Apply sysctl
+  command: sysctl --system
+
+- name: Configure firewall for Kubernetes (firewalld)
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop:
+    - 6443/tcp
+    - 2379-2380/tcp
+    - 10250/tcp
+    - 10251/tcp
+    - 10252/tcp
+  when: 
+    - configure_firewall | bool
+    - ansible_os_family == "RedHat" or ansible_facts['distribution'] == 'CentOS'
+    - "'master' in group_names"
+
+- name: Configure firewall for worker nodes (firewalld)
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop:
+    - 10250/tcp
+    - 30000-32767/tcp
+  when: 
+    - configure_firewall | bool
+    - ansible_os_family == "RedHat" or ansible_facts['distribution'] == 'CentOS'
+    - "'workers' in group_names"

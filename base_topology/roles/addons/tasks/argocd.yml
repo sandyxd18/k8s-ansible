@@ -1,0 +1,18 @@
+---
+- name: Create ArgoCD Namespace
+  shell: kubectl create namespace argocd
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: true
+
+- name: Install ArgoCD with manifest
+  shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ addons.argocd.version }}/manifests/install.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: true
+
+- name: Expose ArgoCD with NodePort (8080)
+  shell: kubectl expose service argocd-server --type=NodePort --name=argocd-server-np -n argocd --port=80 --target-port=8080
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: true

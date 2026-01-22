@@ -1,0 +1,12 @@
+---
+- name: Setup Repo OpenEBS
+  shell: helm repo add openebs https://openebs.github.io/openebs && helm repo update
+
+- name: Install OpenEBS
+  shell: helm install openebs --namespace openebs openebs/openebs --set engines.replicated.mayastor.enabled=false --create-namespace
+
+- name: Wait for OpenEBS pods to be ready
+  shell: kubectl wait --namespace openebs --for=condition=ready pod --all --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: true
