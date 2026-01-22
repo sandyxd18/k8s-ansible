@@ -1,15 +1,14 @@
 # Kubernetes Cluster Deployment with Ansible
 
-Proyek Ansible ini menyediakan automasi lengkap untuk deployment Kubernetes cluster dengan arsitektur single master dan multi-worker. Proyek ini mendukung konfigurasi yang sangat fleksibel termasuk pemilihan versi Kubernetes, CNI plugin, container registry, dan berbagai addons.
+Proyek Ansible ini menyediakan automasi lengkap untuk deployment Kubernetes cluster dengan arsitektur single master dan multi-worker. Proyek ini mendukung konfigurasi yang sangat fleksibel termasuk pemilihan versi Kubernetes, CNI plugin, dan berbagai addons.
 
 ## 🚀 Fitur
 
 - **Arsitektur Fleksibel**: Single master + multiple worker nodes
 - **Versi Kubernetes Configurable**: Tentukan versi Kubernetes yang ingin diinstall
-- **Multiple CNI Plugins**: Pilih antara Calico, Flannel, Weave, atau Cilium
+- **Multiple CNI Plugins**: Pilih antara Calico, Flannel, atau Cilium
 - **Custom Container Registry**: Konfigurasi registry mirror dan insecure registries
-- **Addons Modular**: 
-  - NGINX Ingress Controller
+- **Addons Modular**:
   - MetalLB Load Balancer
   - OpenEBS Storage Provider
   - Metrics Server
@@ -23,7 +22,7 @@ Proyek Ansible ini menyediakan automasi lengkap untuk deployment Kubernetes clus
 - SSH access ke semua nodes
 
 ### Target Nodes (Master & Workers)
-- OS: Ubuntu 20.04/22.04, Debian 11/12, CentOS 7/8, RHEL 7/8
+- OS: Ubuntu 22.04, Debian 12, CentOS 8, RHEL 8
 - RAM: Minimal 2GB (Master: 4GB recommended)
 - CPU: Minimal 2 cores
 - Disk: Minimal 20GB
@@ -84,20 +83,6 @@ kubernetes_version_rhel_package: "1.28.0-0"
 Pilih salah satu: `calico`, `flannel`, `weave`, atau `cilium`
 ```yaml
 cni_plugin: "calico"
-```
-
-#### Container Registry
-```yaml
-# Custom registry (opsional)
-container_registry: "registry.example.com"
-
-# Registry mirrors
-registry_mirrors:
-  - "https://mirror.gcr.io"
-
-# Insecure registries
-insecure_registries:
-  - "registry.example.com:5000"
 ```
 
 #### Addons
@@ -217,8 +202,6 @@ cni_plugin: "flannel"
 pod_network_cidr: "10.244.0.0/16"
 
 addons:
-  nginx_ingress:
-    enabled: false
   metallb:
     enabled: false
   openebs:
@@ -232,13 +215,6 @@ addons:
 ```yaml
 kubernetes_version: "1.28.0"
 cni_plugin: "calico"
-
-container_registry: "harbor.company.com"
-insecure_registries:
-  - "harbor.company.com"
-
-registry_mirrors:
-  - "https://harbor.company.com"
 ```
 
 ## 🔍 Troubleshooting
@@ -298,10 +274,6 @@ ansible-playbook -i inventory site.yml --tags addons
 - [Flannel Documentation](https://github.com/flannel-io/flannel)
 - [MetalLB Documentation](https://metallb.universe.tf/)
 - [OpenEBS Documentation](https://openebs.io/docs)
-
-## 📄 License
-
-MIT License - Silakan gunakan dan modifikasi sesuai kebutuhan.
 
 ## 🤝 Contributing
 
