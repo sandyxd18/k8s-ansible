@@ -50,8 +50,9 @@ addons:
     enabled: false
     version: "v3.2.5"
 
-# Containerd Configuration
-# containerd_version: "1.7.2"
+# Containerd Configuration (containerd, docker, cri-o)
+container_runtime: "containerd"
+crio_version: "v1.35"
 
 # System Configuration
 disable_swap: true
