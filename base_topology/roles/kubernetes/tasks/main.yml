@@ -1,24 +1,24 @@
 ---
-- name: Add Kubernetes apt repository key (Debian/Ubuntu)
+- name: Add Kubernetes apt repository key (Ubuntu)
   get_url:
     url: https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/deb/Release.key
     dest: /tmp/kubernetes-release.key
     mode: '0644'
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Convert Release.key to GPG keyring
   command: >
     gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
   args:
     creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Add Kubernetes apt repository (Debian/Ubuntu)
+- name: Add Kubernetes apt repository (Ubuntu)
   copy:
     dest: /etc/apt/sources.list.d/kubernetes.list
     content: |
-      deb https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/deb/ /
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/deb/ /
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Add Kubernetes yum repository (RedHat/CentOS)
   copy:
@@ -61,7 +61,7 @@
     - ansible_facts['distribution'] == 'RedHat'
     - ansible_facts['lsb']['major_release'] | int >= 8
 
-- name: Install Kubernetes packages (Debian/Ubuntu)
+- name: Install Kubernetes packages (Ubuntu)
   apt:
     name:
       - kubelet
@@ -69,7 +69,7 @@
       - kubectl
     state: present
     update_cache: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Upgrade all packages (RedHat/CentOS)
   dnf:
@@ -92,7 +92,7 @@
     - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
     - ansible_facts['lsb']['major_release'] | int >= 8
 
-- name: Hold Kubernetes packages at current version (Debian/Ubuntu)
+- name: Hold Kubernetes packages at current version (Ubuntu)
   dpkg_selections:
     name: "{{ item }}"
     selection: hold
@@ -100,7 +100,7 @@
     - kubelet
     - kubeadm
     - kubectl
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Enable kubelet service
   systemd:
