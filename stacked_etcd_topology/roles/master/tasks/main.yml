@@ -1,0 +1,77 @@
+---
+- name: Check if Kubernetes is already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_init
+
+- name: Create kubeadm configuration
+  template:
+    src: kubeadm-config.yaml.j2
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    mode: "0644"
+  when: not kubeadm_init.stat.exists
+
+- name: Initialize Kubernetes cluster
+  command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  when: not kubeadm_init.stat.exists
+  register: kubeadm_init_output
+
+- name: Ensure .kube directory exists
+  file:
+    path: "{{ ansible_user_dir }}/.kube"
+    state: directory
+    mode: '0755'
+
+- name: Copy admin kubeconfig
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_user_dir }}/.kube/config"
+    remote_src: yes
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: '0644'
+
+- name: Upload certs and get certificate key
+  command: kubeadm init phase upload-certs --upload-certs
+  register: cert_key_output
+  changed_when: false
+
+- name: Extract certificate key
+  set_fact:
+    kubeadm_certificate_key: "{{ cert_key_output.stdout_lines | last }}"
+
+- name: Generate join command
+  shell: kubeadm token create --print-join-command
+  register: join_command_output
+  changed_when: false
+
+- name: Generate control plane join command
+  set_fact:
+    control_plane_join_command: >-
+      {{ worker_join_command.stdout }}
+      --control-plane
+      --certificate-key {{ kubeadm_certificate_key }}
+
+- name: Save join command to file
+  copy:
+    content: "{{ join_command_output.stdout }}"
+    dest: /tmp/kubernetes_join_command.sh
+    mode: '0755'
+
+- name: Save control plane join command to file
+  copy:
+    content: "{{ control_plane_join_command }}"
+    dest: /tmp/kubeadm_join_control_plane.sh
+    mode: '0700'
+
+- name: Fetch worker join command
+  fetch:
+    src: /tmp/kubeadm_join_worker.sh
+    dest: ./kubeadm_join_worker.sh
+    flat: yes
+
+- name: Fetch control plane join command
+  fetch:
+    src: /tmp/kubeadm_join_control_plane.sh
+    dest: ./kubeadm_join_control_plane.sh
+    flat: yes

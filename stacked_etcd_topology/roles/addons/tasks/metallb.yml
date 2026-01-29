@@ -1,0 +1,46 @@
+---
+- name: Download MetalLb manifest
+  ansible.builtin.get_url:
+    url: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ addons.metallb.version }}/config/manifests/metallb-native.yaml
+    dest: /tmp/metallb.yaml
+    mode: '0644'
+
+- name: Apply MetalLB namespace
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/metallb.yaml
+
+- name: Wait for MetalLB controller to be ready
+  shell: kubectl wait --namespace metallb-system --for=condition=ready pod --selector=app=metallb --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: true
+
+- name: Configure MetalLB IP address pool
+  ansible.builtin.template:
+    src: metallb-config.yaml.j2
+    dest: /tmp/metallb-config.yaml
+
+# - name: Create MetalLB IP address pool configuration
+#   copy:
+#     dest: /tmp/metallb-config.yaml
+#     content: |
+#       apiVersion: metallb.io/v1beta1
+#       kind: IPAddressPool
+#       metadata:
+#         name: default-pool
+#         namespace: metallb-system
+#       spec:
+#         addresses:
+#         - {{ addons.metallb.ip_range }}
+#       ---
+#       apiVersion: metallb.io/v1beta1
+#       kind: L2Advertisement
+#       metadata:
+#         name: default
+#         namespace: metallb-system
+
+- name: Apply MetalLB configuration
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/metallb-config.yaml

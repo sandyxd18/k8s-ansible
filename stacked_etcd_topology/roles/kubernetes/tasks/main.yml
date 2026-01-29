@@ -1,0 +1,109 @@
+---
+- name: Add Kubernetes apt repository key (Ubuntu)
+  get_url:
+    url: https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/deb/Release.key
+    dest: /tmp/kubernetes-release.key
+    mode: '0644'
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Convert Release.key to GPG keyring
+  command: >
+    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Add Kubernetes apt repository (Ubuntu)
+  copy:
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    content: |
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/deb/ /
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Add Kubernetes yum repository (RedHat/CentOS)
+  copy:
+    dest: /etc/yum.repos.d/kubernetes.repo
+    content: |
+      name=Kubernetes
+      baseurl=https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/rpm/
+      enabled=1
+      gpgcheck=1
+      repo_gpgcheck=1
+      gpgkey=https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[0] }}.{{ kubernetes_version.split('.')[1] }}/rpm/repodata/repomd.xml.key
+      exclude=kubelet kubeadm kubectl
+  when: 
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Disable SELinux runtime (RedHat/CentOS)
+  command: setenforce 0
+  when:
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+  ignore_errors: true
+
+- name: Disable SELinux permanently (CentOS)
+  replace:
+    path: /etc/sysconfig/selinux
+    regexp: 'SELINUX=enforcing'
+    replace: 'SELINUX=disabled'
+    follow: yes
+  when:
+    - ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Set SELinux to permissive permanently (RHEL)
+  replace:
+    path: /etc/selinux/config
+    regexp: '^SELINUX=enforcing$'
+    replace: 'SELINUX=permissive'
+  when:
+    - ansible_facts['distribution'] == 'RedHat'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Install Kubernetes packages (Ubuntu)
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: yes
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Upgrade all packages (RedHat/CentOS)
+  dnf:
+    name: "*"
+    state: latest
+    update_cache: yes
+  when:
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Install Kubernetes packages (RedHat/CentOS)
+  dnf:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    disable_excludes: kubernetes
+  when:
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Hold Kubernetes packages at current version (Ubuntu)
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Enable kubelet service
+  systemd:
+    name: kubelet
+    enabled: yes
+    daemon_reload: yes

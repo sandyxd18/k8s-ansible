@@ -1,0 +1,17 @@
+---
+- name: Download Flannel manifest
+  get_url:
+    url: "https://github.com/flannel-io/flannel/releases/download/{{ flannel_version }}/kube-flannel.yml"
+    dest: /tmp/kube-flannel.yml
+    mode: '0644'
+
+- name: Apply Flannel CNI
+  shell: kubectl apply -f /tmp/kube-flannel.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for Flannel pods to be ready
+  shell: kubectl wait --for=condition=Ready pods --all -n kube-flannel --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes

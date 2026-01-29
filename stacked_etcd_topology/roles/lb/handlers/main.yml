@@ -1,0 +1,13 @@
+---
+  - name: Restart haproxy
+    systemd:
+      name: haproxy
+      state: restarted
+
+  - name: Restart keepalived
+    systemd:
+      name: keepalived
+      state: restarted
+
+  - name: Apply sysctl
+    command: sysctl --system

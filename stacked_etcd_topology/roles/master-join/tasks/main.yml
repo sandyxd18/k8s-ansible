@@ -1,0 +1,21 @@
+---
+- name: Check if control plane node is already joined
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_conf
+
+- name: Copy control plane join command to node
+  copy:
+    src: ./kubeadm_join_control_plane.sh
+    dest: /tmp/kubeadm_join_control_plane.sh
+    mode: '0700'
+  when: not kubeadm_conf.stat.exists
+
+- name: Join control plane node to cluster
+  command: bash /tmp/kubeadm_join_control_plane.sh
+  when: not kubeadm_conf.stat.exists
+
+- name: Remove control plane join command file
+  file:
+    path: /tmp/kubeadm_join_control_plane.sh
+    state: absent
