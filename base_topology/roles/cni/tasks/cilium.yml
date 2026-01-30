@@ -50,10 +50,10 @@
   shell: |
     cilium install --version {{ cilium_version }}
   environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
+    KUBECONFIG: "{{ ssh_user_home }}/.kube/config"
 
 - name: Wait for Cilium to be ready
   shell: cilium status --wait
   environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
+    KUBECONFIG: "{{ ssh_user_home }}/.kube/config"
   ignore_errors: yes

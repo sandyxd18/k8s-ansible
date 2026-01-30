@@ -6,6 +6,15 @@
          else 'arm64' if ansible_architecture == 'aarch64'
          else ansible_architecture }}
 
+- name: Ensure ca-certificates is installed
+  apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: yes
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
 - name: Create keyring directory for Docker repo
   file:
     path: /etc/apt/keyrings
@@ -13,9 +22,13 @@
     mode: '0755'
   when: ansible_facts['distribution'] == 'Ubuntu'
 
+# - name: Update CA certificates
+#   command: update-ca-certificates
+#   when: ansible_facts['distribution'] == 'Ubuntu'
+
 - name: Add Docker GPG Key
   ansible.builtin.get_url:
-    url: https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg
+    url: https://download.docker.com/linux/ubuntu/gpg
     dest: /etc/apt/keyrings/docker.asc
     mode: '0644'
     force: yes
@@ -25,7 +38,7 @@
   apt_repository:
     repo: >-
       deb [arch={{ docker_arch }} signed-by=/etc/apt/keyrings/docker.asc]
-      https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}
+      https://download.docker.com/linux/ubuntu
       {{ ansible_facts['distribution_release'] }} stable
     state: present
     filename: docker
