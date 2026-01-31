@@ -1,45 +1,44 @@
-# Kubernetes Cluster Deployment with Ansible
+# Base Topology Kubernetes Cluster Deployment
 
-Proyek Ansible ini menyediakan automasi lengkap untuk deployment Kubernetes cluster dengan arsitektur single master dan multi-worker. Proyek ini mendukung konfigurasi yang sangat fleksibel termasuk pemilihan versi Kubernetes, CNI plugin, dan berbagai addons.
+This Ansible project provides full automation for deploying a Kubernetes cluster with a single-master and multi-worker architecture. The project supports highly flexible configuration including selection of Kubernetes version, CNI plugin, and various addons.
 
-## 🚀 Fitur
+## 🚀 Features
 
-- **Arsitektur Fleksibel**: Single master + multiple worker nodes
-- **Versi Kubernetes Configurable**: Tentukan versi Kubernetes yang ingin diinstall
-- **Multiple CNI Plugins**: Pilih antara Calico, Flannel, atau Cilium
-- **Custom Container Registry**: Konfigurasi registry mirror dan insecure registries
-- **Addons Modular**:
+- **Flexible Architecture**: Single master + multiple worker nodes
+- **Configurable Kubernetes Version**: Specify the Kubernetes version to install
+- **Multiple CNI Plugins**: Choose between Calico, Flannel, Weave, or Cilium
+- **Modular Addons**:
   - MetalLB Load Balancer
   - OpenEBS Storage Provider
   - Metrics Server
-- **Multi-OS Support**: Mendukung Debian/Ubuntu dan RedHat/CentOS
+- **Multi-OS Support**: Supports Debian/Ubuntu and RedHat/CentOS
 
 ## 📋 Prerequisites
 
-### Control Machine (tempat menjalankan Ansible)
-- Ansible 2.9 atau lebih baru
+### Control Machine (Ansible Machine)
+- Ansible 2.9 or newer
 - Python 3.6+
-- SSH access ke semua nodes
+- SSH access to all nodes
 
 ### Target Nodes (Master & Workers)
-- OS: Ubuntu 22.04, Debian 12, CentOS 8, RHEL 8
-- RAM: Minimal 2GB (Master: 4GB recommended)
-- CPU: Minimal 2 cores
-- Disk: Minimal 20GB
-- Network: Koneksi antar nodes
-- User dengan sudo privileges atau root access
+- OS: Ubuntu 22.04 or newer, CentOS 8 or newer
+- RAM: Minimum 2GB (Master: 4GB recommended)
+- CPU: Minimum 2 cores
+- Disk: Minimum 20GB
+- Network: Connectivity between nodes
+- User with sudo privileges or root access
 
-## 📁 Struktur Project
+## 📁 Project Structure
 
 ```
 k8s-ansible/
-├── ansible.cfg              # Konfigurasi Ansible
-├── inventory                # Inventory file (daftar hosts)
+├── ansible.cfg              # Ansible configuration
+├── inventory                # Inventory file (list of hosts)
 ├── site.yml                 # Main playbook
 ├── group_vars/
-│   └── all.yml             # Variabel konfigurasi global
+│   └── all.yml             # Global configuration variables
 ├── roles/
-│   ├── common/             # Prerequisites dan system setup
+│   ├── common/             # Prerequisites and system setup
 │   ├── container-runtime/  # Containerd installation
 │   ├── kubernetes/         # Kubeadm, kubelet, kubectl
 │   ├── master/             # Control plane initialization
@@ -49,11 +48,11 @@ k8s-ansible/
 └── README.md
 ```
 
-## ⚙️ Konfigurasi
+## ⚙️ Configuration
 
 ### 1. Edit Inventory File
 
-Edit file `inventory` dan sesuaikan dengan IP address nodes Anda:
+Edit the `inventory` file and adjust with your node IP addresses:
 
 ```ini
 [master]
@@ -69,18 +68,18 @@ master
 workers
 ```
 
-### 2. Konfigurasi Variabel
+### 2. Variable Configuration
 
-Edit file `group_vars/all.yml` untuk mengkustomisasi deployment:
+Edit `group_vars/all.yml` to customize the deployment:
 
-#### Versi Kubernetes
+#### Kubernetes Version
 ```yaml
-kubernetes_version: "1.28.0"
-kubernetes_version_rhel_package: "1.28.0-0"
+kubernetes_version: "1.34.0"
+kubernetes_version_rhel_package: "1.34.0-0"
 ```
 
 #### CNI Plugin
-Pilih salah satu: `calico`, `flannel`, `weave`, atau `cilium`
+Choose one: `calico`, `flannel`, `weave`, or `cilium`
 ```yaml
 cni_plugin: "calico"
 ```
@@ -105,9 +104,9 @@ addons:
     version: "v0.8.0"
 ```
 
-## 🎯 Cara Penggunaan
+## 🎯 How to use
 
-### 1. Test Koneksi ke Semua Nodes
+### 1. Test connectivity to all nodes
 
 ```bash
 ansible all -m ping
@@ -122,60 +121,60 @@ pip3 install kubernetes
 ### 2. Deploy Kubernetes Cluster
 
 ```bash
-ansible-playbook -i inventory site.yml
+ansible-playbook site.yml
 ```
 
 ### 3. Verify Deployment
 
-Setelah deployment selesai, login ke master node dan jalankan:
+After deployment finishes, log in to the master node and run:
 
 ```bash
 kubectl get nodes
 kubectl get pods -A
 ```
 
-### 4. Deploy Hanya Addons Tertentu
+### 4. Deploy Only Specific Addons
 
-Jika cluster sudah berjalan dan Anda hanya ingin menambah addons:
+If the cluster is already running and you only want to add addons:
 
 ```bash
-ansible-playbook -i inventory site.yml --tags addons
+ansible-playbook site.yml --tags addons
 ```
 
-## 🔧 Opsi Deployment Lanjutan
+## 🔧 Advanced Deployment Options
 
-### Deploy dengan Specific Tags
+### Deploy with Specific Tags
 
 ```bash
-# Hanya setup prerequisites
-ansible-playbook -i inventory site.yml --tags common
+# Only setup prerequisites
+ansible-playbook site.yml --tags common
 
-# Hanya install container runtime
-ansible-playbook -i inventory site.yml --tags container-runtime
+# Only install container runtime
+ansible-playbook site.yml --tags container-runtime
 
-# Hanya install Kubernetes packages
-ansible-playbook -i inventory site.yml --tags kubernetes
+# Only install Kubernetes packages
+ansible-playbook site.yml --tags kubernetes
 ```
 
-### Limit Execution ke Host Tertentu
+### Limit Execution to Specific Hosts
 
 ```bash
-# Hanya jalankan di master
-ansible-playbook -i inventory site.yml --limit master
+# Only run on master
+ansible-playbook site.yml --limit master
 
-# Hanya jalankan di worker tertentu
-ansible-playbook -i inventory site.yml --limit k8s-worker1
+# Only run on a specific worker
+ansible-playbook site.yml --limit k8s-worker1
 ```
 
 ### Dry Run (Check Mode)
 
 ```bash
-ansible-playbook -i inventory site.yml --check
+ansible-playbook site.yml --check
 ```
 
-## 📝 Contoh Konfigurasi
+## 📝 Configuration Examples
 
-### Contoh 1: Production Setup dengan Calico
+### Example 1: Production Setup with Calico
 
 ```yaml
 kubernetes_version: "1.28.0"
@@ -194,7 +193,7 @@ addons:
     enabled: true
 ```
 
-### Contoh 2: Development Setup dengan Flannel
+### Example 2: Development Setup with Flannel
 
 ```yaml
 kubernetes_version: "1.27.0"
@@ -210,7 +209,7 @@ addons:
     enabled: true
 ```
 
-### Contoh 3: Setup dengan Private Registry
+### Example 3: Setup with Private Registry
 
 ```yaml
 kubernetes_version: "1.28.0"
@@ -219,9 +218,9 @@ cni_plugin: "calico"
 
 ## 🔍 Troubleshooting
 
-### Cluster Initialization Gagal
+### Cluster Initialization Failed
 
-Jika initialization gagal, reset cluster di master node:
+If initialization fails, reset the cluster on the master node:
 
 ```bash
 kubeadm reset -f
@@ -229,44 +228,44 @@ rm -rf /etc/kubernetes/
 rm -rf /var/lib/etcd/
 ```
 
-Kemudian jalankan ulang playbook.
+Then rerun the playbook.
 
-### Worker Node Tidak Bisa Join
+### Worker Node Cannot Join
 
-1. Pastikan firewall mengizinkan koneksi
-2. Cek join token masih valid:
+1. Ensure the firewall allows required connections
+2. Check if the join token is still valid:
    ```bash
    kubeadm token list
    ```
-3. Generate token baru jika perlu:
+3. Generate a new token if needed:
    ```bash
    kubeadm token create --print-join-command
    ```
 
-### CNI Plugin Tidak Berfungsi
+### CNI Plugin Not Working
 
-Cek status pods CNI:
+Check the status of CNI pods:
 ```bash
 kubectl get pods -n kube-system
 kubectl logs -n kube-system <cni-pod-name>
 ```
 
-### Addons Tidak Terinstall
+### Addons Not Installed
 
-Pastikan addons diaktifkan di `group_vars/all.yml` dan jalankan:
+Ensure addons are enabled in `group_vars/all.yml` and run:
 ```bash
-ansible-playbook -i inventory site.yml --tags addons
+ansible-playbook site.yml --tags addons
 ```
 
 ## 🛡️ Security Considerations
 
-1. **SSH Keys**: Gunakan SSH key authentication daripada password
-2. **Firewall**: Konfigurasi firewall untuk membatasi akses
-3. **RBAC**: Implementasikan RBAC policies setelah cluster berjalan
-4. **Network Policies**: Gunakan network policies untuk isolasi pods
-5. **Registry Security**: Gunakan TLS untuk container registries di production
+1. **SSH Keys**: Use SSH key authentication instead of passwords
+2. **Firewall**: Configure firewall to restrict access
+3. **RBAC**: Implement RBAC policies after the cluster is running
+4. **Network Policies**: Use network policies for pod isolation
+5. **Registry Security**: Use TLS for container registries in production
 
-## 📚 Referensi
+## 📚 References
 
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [Ansible Documentation](https://docs.ansible.com/)
@@ -277,7 +276,7 @@ ansible-playbook -i inventory site.yml --tags addons
 
 ## 🤝 Contributing
 
-Kontribusi sangat diterima! Silakan buat pull request atau issue untuk improvement.
+Contributions are very welcome! Please open a pull request or an issue for improvements.
 
 ## ✨ Author
 

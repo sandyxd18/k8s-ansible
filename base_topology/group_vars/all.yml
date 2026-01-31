@@ -7,8 +7,8 @@ cluster_name: "example-test"
 
 # Pod Network CIDR
 pod_network_cidr: "10.244.0.0/16"
-control_plane_endpoint: "10.0.0.100:6443"
-apiserver_advertise_address: "10.0.0.100"
+apiserver_advertise_address: "192.168.1.10"
+control_plane_endpoint: "{{ apiserver_advertise_address }}:6443"
 
 # CNI Plugin Selection (calico, flannel, weave, cilium)
 cni_plugin: "calico"

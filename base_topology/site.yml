@@ -3,25 +3,39 @@
   hosts: k8s_cluster
   gather_facts: yes
   roles:
-    - common
-    - container-runtime
-    - kubernetes
+    - role: common
+      tags:
+        - common
+    - role: container-runtime
+      tags:
+        - container-runtime
+    - role: kubernetes
+      tags:
+        - kubernetes
 
 - name: Setup Kubernetes Master
   hosts: master
   gather_facts: yes
   roles:
-    - master
-    - cni
+    - role: master
+      tags:
+        - master
+    - role: cni
+      tags:
+        - cni
 
 - name: Join Worker Nodes
   hosts: workers
   gather_facts: yes
   roles:
-    - worker
+    - role: worker
+      tags:
+        - worker
 
 - name: Deploy Addons
   hosts: master
   gather_facts: yes
   roles:
-    - addons
+    - role: addons
+      tags:
+        - addons
