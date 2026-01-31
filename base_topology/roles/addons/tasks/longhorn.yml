@@ -1,0 +1,34 @@
+---
+- name: Download Longhorn manifest
+  get_url:
+    url: https://raw.githubusercontent.com/longhorn/longhorn/{{ addons.longhorn.version }}/deploy/longhorn.yaml
+    dest: /tmp/longhorn.yaml
+    mode: '0644'
+
+- name: Apply Longhorn manifest
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/longhorn.yaml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  ignore_errors: yes
+
+- name: Wait for Longhorn pods to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: longhorn-system
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: longhorn_pods
+  until: >
+    longhorn_pods.resources | length > 0 and
+    (
+      longhorn_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | map(attribute='status.containerStatuses')
+      | map('map', attribute='ready')
+      | map('min')
+      | list
+      | min
+    )
+  retries: 20
+  delay: 15
+  ignore_errors: yes

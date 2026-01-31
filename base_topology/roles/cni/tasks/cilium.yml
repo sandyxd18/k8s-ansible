@@ -47,13 +47,13 @@
     - "/tmp/cilium-linux-{{ cli_arch }}.tar.gz.sha256sum"
 
 - name: Install Cilium CNI
-  shell: |
+  command: |
     cilium install --version {{ cilium_version }}
   environment:
     KUBECONFIG: "{{ ssh_user_home }}/.kube/config"
 
 - name: Wait for Cilium to be ready
-  shell: cilium status --wait
+  command: cilium status --wait
   environment:
     KUBECONFIG: "{{ ssh_user_home }}/.kube/config"
   ignore_errors: yes

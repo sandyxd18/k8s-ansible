@@ -18,3 +18,7 @@
 - name: Install ArgoCD
   include_tasks: argocd.yml
   when: addons.argocd.enabled | bool
+
+- name: Install Longhorn
+  include_tasks: longhorn.yml
+  when: addons.longhorn.enabled | bool

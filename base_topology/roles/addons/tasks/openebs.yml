@@ -1,12 +1,45 @@
 ---
-- name: Setup Repo OpenEBS
-  shell: helm repo add openebs https://openebs.github.io/openebs && helm repo update
+- name: Install Helm
+  include_tasks: helm.yml
+
+- name: Add OpenEBS Helm repository
+  kubernetes.core.helm_repository:
+    name: openebs
+    repo_url: https://openebs.github.io/openebs
 
 - name: Install OpenEBS
-  shell: helm install openebs --namespace openebs openebs/openebs --set engines.replicated.mayastor.enabled=false --create-namespace
+  kubernetes.core.helm:
+    name: openebs
+    chart_ref: openebs/openebs
+    release_namespace: openebs
+    create_namespace: true
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+    values:
+      engines:
+        replicated:
+          mayastor:
+            enabled: false
 
 - name: Wait for OpenEBS pods to be ready
-  shell: kubectl wait --namespace openebs --for=condition=ready pod --all --timeout=300s
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: true
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: openebs
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: openebs_pods
+  until: >
+    openebs_pods.resources | length > 0 and
+    (
+      openebs_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | selectattr(
+          'status.containerStatuses',
+          'map',
+          attribute='ready'
+        )
+      | map('min')
+      | list
+      | min
+    )
+  retries: 20
+  delay: 15
+  ignore_errors: yes

@@ -38,7 +38,6 @@ addons:
   # OpenEBS Storage Provider
   openebs:
     enabled: false
-    # version: "3.7.0"
   
   # Metrics Server
   metrics_server:
@@ -49,6 +48,10 @@ addons:
   argocd:
     enabled: false
     version: "v3.2.5"
+
+  longhorn:
+    enabled: false
+    version: "v1.11.0"
 
 # Containerd Configuration (containerd, docker, cri-o)
 container_runtime: "containerd"
