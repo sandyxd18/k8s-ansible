@@ -13,4 +13,3 @@ k8s-lb2 ansible_host=192.168.1.31 ansible_user=ubuntu
 [k8s_cluster:children]
 masters
 workers
-load_balancers

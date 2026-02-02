@@ -1,0 +1,76 @@
+---
+- name: Set Istio architecture (Istio official mapping)
+  set_fact:
+    istio_arch: >-
+      {% if ansible_architecture in ['x86_64', 'amd64'] %}
+      amd64
+      {% elif ansible_architecture is match('^armv8.*')
+              or ansible_architecture in ['aarch64', 'arm64'] %}
+      arm64
+      {% elif ansible_architecture is match('^armv.*') %}
+      armv7
+      {% else %}
+      unsupported
+      {% endif %}
+
+- name: Fail if architecture is not supported by Istio
+  fail:
+    msg: "Architecture {{ ansible_architecture }} is not supported by Istio"
+  when: istio_arch == 'unsupported'
+
+- name: Download Istio release
+  get_url:
+    url: "https://github.com/istio/istio/releases/download/{{ istio_version }}/istio-{{ istio_version }}-linux-{{ istio_arch }}.tar.gz"
+    dest: "/tmp/istio-{{ istio_version }}.tar.gz"
+    mode: '0644'
+
+- name: Extract Istio
+  unarchive:
+    src: "/tmp/istio-{{ istio_version }}.tar.gz"
+    dest: /opt
+    remote_src: yes
+
+- name: Install istioctl binary
+  copy:
+    src: "/opt/istio-{{ istio_version }}/bin/istioctl"
+    dest: /usr/local/bin/istioctl
+    mode: '0755'
+    remote_src: yes
+
+- name: Check if Gateway API CRD exists
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: gateways.gateway.networking.k8s.io
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: gateway_api_crd
+  failed_when: false
+  when: addons.istio.profile == 'ambient'
+
+- name: Install Gateway API CRDs (experimental)
+  kubernetes.core.k8s:
+    state: present
+    src: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  when: gateway_api_crd.resources | length == 0 and addons.istio.profile == 'ambient'
+
+- name: Install Istio using istioctl
+  command: >
+    istioctl install
+    --set profile="{{ addons.istio.profile }}"
+    -y
+  environment:
+    KUBECONFIG: "{{ ssh_user_home }}/.kube/config"
+  
+- name: Enable sidecar injection on default namespace
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: {{ addons.istio.injection_namespace | default('default') }}
+        labels:
+          istio-injection: enabled
+  when: addons.istio.profile != 'ambient'

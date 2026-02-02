@@ -6,12 +6,31 @@
     mode: '0644'
 
 - name: Apply Calico CNI
-  command: kubectl apply -f /tmp/calico.yaml
-  environment:
-    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/calico.yaml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
 
 - name: Wait for Calico pods to be ready
-  command: kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s
-  environment:
-    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
-  failed_when: false
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: kube-system
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: calico_pods
+  until: >
+    calico_pods.resources | length > 0 and
+    (
+      calico_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | selectattr(
+          'status.containerStatuses',
+          'map',
+          attribute='ready'
+        )
+      | map('min')
+      | list
+      | min
+    )
+  retries: 20
+  delay: 15
+  ignore_errors: true

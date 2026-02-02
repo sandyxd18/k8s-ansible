@@ -56,4 +56,4 @@
   command: cilium status --wait
   environment:
     KUBECONFIG: "{{ ssh_user_home }}/.kube/config"
-  ignore_errors: yes
+  ignore_errors: true

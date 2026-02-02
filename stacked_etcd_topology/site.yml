@@ -1,13 +1,13 @@
 ---
 - name: Setup HAProxy Load Balancer
   hosts: load_balancers
-  gather_facts: yes
+  gather_facts: true
   roles:
     - lb
 
 - name: Prepare all nodes
   hosts: k8s_cluster
-  gather_facts: yes
+  gather_facts: true
   roles:
     - common
     - container-runtime
@@ -15,7 +15,7 @@
   
 - name: Setup Kubernetes Master
   hosts: masters
-  gather_facts: yes
+  gather_facts: true
   roles:
     - master
     - cni
@@ -23,20 +23,20 @@
 
 - name: Join Master Nodes
   hosts: masters
-  gather_facts: yes
+  gather_facts: true
   roles:
     - master-join
   when: inventory_hostname != groups['masters'][0]
 
 - name: Join Worker Nodes
   hosts: workers
-  gather_facts: yes
+  gather_facts: true
   roles:
     - worker
 
 - name: Deploy Addons
   hosts: masters
-  gather_facts: yes
+  gather_facts: true
   roles:
     - addons
   when: inventory_hostname == groups['masters'][0]

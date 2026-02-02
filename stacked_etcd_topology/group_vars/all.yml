@@ -6,6 +6,7 @@ kubernetes_version_rhel_package: "1.28.0-0"
 cluster_name: "example-test"
 
 # Pod Network CIDR
+service_network_cidr: "10.96.0.0/12"
 pod_network_cidr: "10.244.0.0/16"
 lb_ip: "10.0.0.110"
 control_plane_endpoint: "{{ lb_ip }}:6443"

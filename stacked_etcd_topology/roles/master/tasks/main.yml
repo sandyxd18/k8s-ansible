@@ -16,19 +16,30 @@
   when: not kubeadm_init.stat.exists
   register: kubeadm_init_output
 
-- name: Ensure .kube directory exists
+- name: Get SSH user home directory from system
+  command: getent passwd {{ ansible_user }}
+  register: passwd_entry
+  changed_when: false
+
+- name: Set SSH user home fact
+  set_fact:
+    ssh_user_home: "{{ passwd_entry.stdout.split(':')[5] }}"
+
+- name: Ensure .kube directory exists for SSH user
   file:
-    path: "{{ ansible_user_dir }}/.kube"
+    path: "{{ ssh_user_home }}/.kube"
     state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0755'
 
-- name: Copy admin kubeconfig
+- name: Copy admin kubeconfig to SSH user home
   copy:
     src: /etc/kubernetes/admin.conf
-    dest: "{{ ansible_user_dir }}/.kube/config"
+    dest: "{{ ssh_user_home }}/.kube/config"
     remote_src: yes
-    owner: "{{ ansible_user_uid }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0644'
 
 - name: Upload certs and get certificate key
@@ -48,7 +59,7 @@
 - name: Generate control plane join command
   set_fact:
     control_plane_join_command: >-
-      {{ worker_join_command.stdout }}
+      {{ join_command_output.stdout }}
       --control-plane
       --certificate-key {{ kubeadm_certificate_key }}
 

@@ -61,6 +61,14 @@
     - ansible_facts['distribution'] == 'RedHat'
     - ansible_facts['lsb']['major_release'] | int >= 8
 
+- name: Wait for apt lock
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      sleep 5
+    done
+  changed_when: false
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
 - name: Install Kubernetes packages (Ubuntu)
   apt:
     name:

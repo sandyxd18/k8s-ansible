@@ -6,7 +6,7 @@
     kind: Namespace
     state: present
     kubeconfig: "{{ ssh_user_home }}/.kube/config"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Install ArgoCD with manifest
   kubernetes.core.k8s:
@@ -14,7 +14,7 @@
     src: https://raw.githubusercontent.com/argoproj/argo-cd/{{ addons.argocd.version }}/manifests/install.yaml
     namespace: argocd
     kubeconfig: "{{ ssh_user_home }}/.kube/config"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Expose ArgoCD with NodePort (8080)
   kubernetes.core.k8s:
@@ -34,4 +34,4 @@
           - name: http
             port: 80
             targetPort: 8080
-  ignore_errors: yes
+  ignore_errors: true

@@ -36,4 +36,4 @@
     )
   retries: 20
   delay: 15
-  ignore_errors: yes
+  ignore_errors: true
