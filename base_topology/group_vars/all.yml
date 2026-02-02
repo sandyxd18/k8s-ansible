@@ -53,6 +53,12 @@ addons:
     enabled: false
     version: "v1.11.0"
 
+  istio:
+    enabled: false
+    version: "1.28.3"
+    profile: "default"  # options: demo, minimal, default, remote, empty, preview, ambient
+    injection_namespace: "istio-injection"
+
 # Containerd Configuration (containerd, docker, cri-o)
 container_runtime: "containerd"
 crio_version: "v1.35"

@@ -22,3 +22,7 @@
 - name: Install Longhorn
   include_tasks: longhorn.yml
   when: addons.longhorn.enabled | bool
+
+- name: Install Istio
+  include_tasks: istio.yml
+  when: addons.istio.enabled | bool
