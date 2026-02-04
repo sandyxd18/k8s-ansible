@@ -1,0 +1,20 @@
+[masters]
+k8s-master1 ansible_host=192.168.1.10 ansible_user=ubuntu
+k8s-master2 ansible_host=192.168.1.11 ansible_user=ubuntu
+
+[workers]
+k8s-worker1 ansible_host=192.168.1.20 ansible_user=ubuntu
+k8s-worker2 ansible_host=192.168.1.21 ansible_user=ubuntu
+
+[etcd]
+k8s-etcd1 ansible_host=192.168.1.30 ansible_user=ubuntu
+k8s-etcd2 ansible_host=192.168.1.31 ansible_user=ubuntu
+
+[load_balancers]
+k8s-lb1 ansible_host=192.168.1.40 ansible_user=ubuntu
+k8s-lb2 ansible_host=192.168.1.41 ansible_user=ubuntu
+
+[k8s_cluster:children]
+etcd
+masters
+workers

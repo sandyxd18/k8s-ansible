@@ -1,0 +1,190 @@
+---
+- name: Get SSH user home directory from system
+  command: getent passwd {{ ansible_user }}
+  register: passwd_entry
+  changed_when: false
+
+- name: Set SSH user home fact
+  set_fact:
+    ssh_user_home: "{{ passwd_entry.stdout.split(':')[5] }}"
+
+- name: Check etcd CA certificate
+  stat:
+    path: /etc/kubernetes/pki/etcd/ca.crt
+  register: etcd_ca_crt
+
+- name: Check etcd CA private key
+  stat:
+    path: /etc/kubernetes/pki/etcd/ca.key
+  register: etcd_ca_key  
+
+- name: Setup kubelet service manager
+  template:
+    src: kubelet.conf.j2
+    dest: /etc/systemd/system/kubelet.service.d/kubelet.conf
+    mode: '0755'
+
+- name: Create systemd config
+  template:
+    src: 20-etcd-service-manager.conf.j2
+    dest: /etc/systemd/system/kubelet.service.d/20-etcd-service-manager.conf
+    mode: '0755'
+  notify: Restart kubelet
+
+- name: Generate kubeadm etcd configs for all etcd nodes
+  block:
+
+    - name: Ensure temp directories exist
+      file:
+        path: "/tmp/{{ hostvars[item].ansible_host }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ groups['etcd'] }}"
+
+    - name: Generate kubeadm etcd config
+      template:
+        src: kubeadmcfg.yaml.j2
+        dest: "/tmp/{{ hostvars[item].ansible_host }}/kubeadmcfg.yaml"
+        mode: '0644'
+      loop: "{{ groups['etcd'] }}"
+      vars:
+        target_host: "{{ item }}"
+
+  run_once: true
+  delegate_to: "{{ groups['etcd'][0] }}"
+
+- name: Generate certificate authority
+  command: kubeadm init phase certs etcd-ca
+  when: not etcd_ca_crt.stat.exists and not etcd_ca_key.stat.exists
+
+- name: Generate etcd certificates for all etcd nodes
+  block:
+
+    - name: Generate certs for non-primary etcd nodes
+      block:
+
+        - name: Generate etcd certs via kubeadm
+          command: >
+            kubeadm init phase certs {{ item.phase }}
+            --config=/tmp/{{ hostvars[target].ansible_host }}/kubeadmcfg.yaml
+          loop:
+            - { phase: "etcd-server" }
+            - { phase: "etcd-peer" }
+            - { phase: "etcd-healthcheck-client" }
+            - { phase: "apiserver-etcd-client" }
+          loop_control:
+            loop_var: item
+
+        - name: Copy PKI to temp directory
+          copy:
+            src: /etc/kubernetes/pki
+            dest: "/tmp/{{ hostvars[target].ansible_host }}/"
+            remote_src: yes
+
+        - name: Cleanup non-reusable certs on primary host
+          find:
+            paths: /etc/kubernetes/pki
+            file_type: file
+            excludes:
+              - ca.crt
+              - ca.key
+          register: non_ca_files
+
+        - name: Delete non-reusable certs
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ non_ca_files.files }}"
+
+      loop: "{{ groups['etcd'][1:] }}"
+      loop_control:
+        loop_var: target
+
+    - name: Generate certs for primary etcd node
+      command: >
+        kubeadm init phase certs {{ item }}
+        --config=/tmp/{{ hostvars[groups['etcd'][0]].ansible_host }}/kubeadmcfg.yaml
+      loop:
+        - etcd-server
+        - etcd-peer
+        - etcd-healthcheck-client
+        - apiserver-etcd-client
+
+    - name: Remove ca.key from copied PKI directories
+      file:
+        path: "/tmp/{{ hostvars[item].ansible_host }}/pki/ca.key"
+        state: absent
+      loop: "{{ groups['etcd'][1:] }}"
+
+  run_once: true
+  delegate_to: "{{ groups['etcd'][0] }}"
+
+- name: Distribute etcd PKI to other etcd nodes
+  block:
+
+    - name: Copy PKI directory to remote etcd nodes
+      synchronize:
+        src: "/tmp/{{ hostvars[item].ansible_host }}/pki/"
+        dest: "{{ ssh_user_home }}/pki/"
+        recursive: yes
+        delete: no
+        rsync_opts:
+          - "--chmod=F600,D700"
+      delegate_to: "{{ groups['etcd'][0] }}"
+      loop: "{{ groups['etcd'][1:] }}"
+      loop_control:
+        loop_var: item
+
+    - name: Move PKI to /etc/kubernetes on target nodes
+      become: yes
+      block:
+
+        - name: Ensure /etc/kubernetes exists
+          file:
+            path: /etc/kubernetes
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+
+        - name: Move PKI into /etc/kubernetes
+          command: mv {{ ssh_user_home }}/pki /etc/kubernetes/
+          args:
+            creates: /etc/kubernetes/pki
+
+        - name: Set ownership for PKI directory
+          file:
+            path: /etc/kubernetes/pki
+            owner: root
+            group: root
+            recurse: yes
+
+  run_once: true
+
+- name: Initialize local etcd on primary node
+  command: >
+    kubeadm init phase etcd local
+    --config=/tmp/{{ ansible_host }}/kubeadmcfg.yaml
+  when: inventory_hostname == groups['etcd'][0]
+
+- name: Initialize local etcd on secondary nodes
+  command: >
+    kubeadm init phase etcd local
+    --config={{ ssh_user_home }}/kubeadmcfg.yaml
+  when: inventory_hostname != groups['etcd'][0]
+
+- name: Copy etcd certificates to first control plane node
+  block:
+
+    - name: Fetch etcd certs from etcd nodes
+      synchronize:
+        mode: pull
+        src: "{{ item }}"
+        dest: "{{ ssh_user_home }}/"
+      loop:
+        - /etc/kubernetes/pki/etcd/ca.crt
+        - /etc/kubernetes/pki/apiserver-etcd-client.crt
+        - /etc/kubernetes/pki/apiserver-etcd-client.key
+      delegate_to: "{{ groups['masters'][0] }}"
+
+  when: inventory_hostname in groups['etcd']

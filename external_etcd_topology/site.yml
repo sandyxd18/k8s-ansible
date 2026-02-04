@@ -1,0 +1,68 @@
+---
+- name: Setup HAProxy Load Balancer
+  hosts: load_balancers
+  gather_facts: true
+  roles:
+    - role: lb
+      tags:
+        - lb
+
+- name: Prepare all nodes
+  hosts: k8s_cluster
+  gather_facts: true
+  roles:
+    - role: common
+      tags:
+        - common
+    - role: container-runtime
+      tags:
+        - container-runtime
+    - role: kubernetes
+      tags:
+        - kubernetes
+
+- name: Setup ETCD Nodes
+  hosts: etcd
+  gather_facts: true
+  roles:
+    - role: etcd
+      tags:
+        - etcd
+
+- name: Setup Kubernetes Master
+  hosts: masters
+  gather_facts: true
+  roles:
+    - role: master
+      tags:
+        - master
+    - role: cni
+      tags:
+        - cni
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Join Master Nodes
+  hosts: masters
+  gather_facts: true
+  roles:
+    - role: master-join
+      tags:
+        - master-join
+  when: inventory_hostname != groups['masters'][0]
+
+- name: Join Worker Nodes
+  hosts: workers
+  gather_facts: true
+  roles:
+    - role: worker
+      tags:
+        - worker
+
+- name: Deploy Addons
+  hosts: masters
+  gather_facts: true
+  roles:
+    - role: addons
+      tags:
+        - addons
+  when: inventory_hostname == groups['masters'][0]

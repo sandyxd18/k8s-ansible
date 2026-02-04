@@ -1,0 +1,36 @@
+---
+- name: Download Flannel manifest
+  get_url:
+    url: "https://github.com/flannel-io/flannel/releases/download/{{ flannel_version }}/kube-flannel.yml"
+    dest: /tmp/kube-flannel.yml
+    mode: '0644'
+
+- name: Apply Flannel CNI
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/kube-flannel.yml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+
+- name: Wait for Flannel pods to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: kube-flannel
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: flannel_pods
+  until: >
+    flannel_pods.resources | length > 0 and
+    (
+      flannel_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | selectattr(
+          'status.containerStatuses',
+          'map',
+          attribute='ready'
+        )
+      | map('min')
+      | list
+      | min
+    )
+  retries: 20
+  delay: 15
+  ignore_errors: true

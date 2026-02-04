@@ -1,0 +1,71 @@
+---
+- name: Add CRI-O repo key (Ubuntu)
+  ansible.builtin.get_url:
+    url: https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/deb/Release.key
+    dest: /tmp/cri-o.key
+    mode: '0644'
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Convert CRI-O Release.key to GPG keyring (Ubuntu)
+  command: >
+    gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg /tmp/cri-o.key
+  args:
+    creates: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Add CRI-O repo (Ubuntu)
+  copy:
+    dest: /etc/apt/sources.list.d/cri-o.list
+    content:
+      deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/deb/ /
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Add CRI-O yum repository (RedHat/CentOS)
+  copy:
+    dest: /etc/yum.repos.d/cri-o.repo
+    content: |
+      [cri-o]
+      name=CRI-O
+      baseurl=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/rpm/
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/rpm/repodata/repomd.xml.key
+  when: 
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Install packages dependencies (RedHat/CentOS)
+  dnf:
+    name: container-selinux
+    state: latest
+  when:
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Install CRI-O (RedHat/CentOS)
+  dnf:
+    name:
+      - cri-o
+      - cri-o-runc
+      - cri-tools
+    state: latest
+  when:
+    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
+    - ansible_facts['lsb']['major_release'] | int >= 8
+
+- name: Install CRI-O (Ubuntu)
+  apt:
+    name:
+      - cri-o
+      - cri-o-runc
+      - cri-tools
+    state: present
+    update_cache: yes
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Enable kubelet service
+  systemd:
+    name: cri-o
+    enabled: yes
+    state: started
+    daemon_reload: yes

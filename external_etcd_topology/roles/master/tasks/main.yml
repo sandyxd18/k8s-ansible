@@ -1,0 +1,125 @@
+---
+- name: Create etcd certs directory
+  file:
+    path: /etc/kubernetes/pki/etcd/
+    state: directory
+    mode: '0755'
+
+- name: Move etcd CA cert to /etc/kubernetes/pki/etcd
+  command: >
+    mv {{ ssh_user_home }}/ca.crt
+    /etc/kubernetes/pki/etcd/ca.crt
+
+- name: Move certs to /etc/kubernetes/pki
+  command: >
+    mv {{ ssh_user_home }}/{{ item }}
+    /etc/kubernetes/pki/{{ item }}
+  loop:
+    - apiserver-etcd-client.crt
+    - apiserver-etcd-client.key
+
+- name: Check if Kubernetes is already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_init
+
+- name: Create kubeadm configuration
+  template:
+    src: kubeadm-config.yaml.j2
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    mode: "0644"
+  when: not kubeadm_init.stat.exists
+
+- name: Initialize Kubernetes cluster
+  command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  when: not kubeadm_init.stat.exists
+  register: kubeadm_init_output
+
+# - name: Get SSH user home directory from system
+#   command: getent passwd {{ ansible_user }}
+#   register: passwd_entry
+#   changed_when: false
+
+# - name: Set SSH user home fact
+#   set_fact:
+#     ssh_user_home: "{{ passwd_entry.stdout.split(':')[5] }}"
+
+- name: Ensure .kube directory exists for SSH user
+  file:
+    path: "{{ ssh_user_home }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Copy admin kubeconfig to SSH user home
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ssh_user_home }}/.kube/config"
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Upload certs and get certificate key
+  command: kubeadm init phase upload-certs --upload-certs
+  register: cert_key_output
+  changed_when: false
+
+- name: Extract certificate key
+  set_fact:
+    kubeadm_certificate_key: "{{ cert_key_output.stdout_lines | last }}"
+
+- name: Generate join command
+  shell: kubeadm token create --print-join-command
+  register: join_command_output
+  changed_when: false
+
+- name: Generate control plane join command
+  set_fact:
+    control_plane_join_command: >-
+      {{ join_command_output.stdout }}
+      --control-plane
+      --certificate-key {{ kubeadm_certificate_key }}
+
+- name: Save join command to file
+  copy:
+    content: "{{ join_command_output.stdout }}"
+    dest: /tmp/kubernetes_join_command.sh
+    mode: '0755'
+
+- name: Save control plane join command to file
+  copy:
+    content: "{{ control_plane_join_command }}"
+    dest: /tmp/kubeadm_join_control_plane.sh
+    mode: '0700'
+
+- name: Fetch worker join command
+  fetch:
+    src: /tmp/kubeadm_join_worker.sh
+    dest: ./kubeadm_join_worker.sh
+    flat: yes
+
+- name: Fetch control plane join command
+  fetch:
+    src: /tmp/kubeadm_join_control_plane.sh
+    dest: ./kubeadm_join_control_plane.sh
+    flat: yes
+
+- name: Distribute Kubernetes PKI to other control plane nodes
+  synchronize:
+    src: "/etc/kubernetes/pki/{{ item.file }}"
+    dest: "{{ ssh_user_home }}/{{ item.dest | default(item.file) }}"
+    mode: push
+    rsync_opts:
+      - "--chmod=F600"
+  loop:
+    - { file: "ca.crt" }
+    - { file: "ca.key" }
+    - { file: "sa.key" }
+    - { file: "sa.pub" }
+    - { file: "front-proxy-ca.crt" }
+    - { file: "front-proxy-ca.key" }
+    - { file: "etcd/ca.crt", dest: "etcd-ca.crt" }
+  delegate_to: "{{ groups['masters'][0] }}"
+  run_once: true

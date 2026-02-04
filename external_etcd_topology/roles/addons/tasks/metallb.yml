@@ -1,0 +1,46 @@
+---
+- name: Download MetalLb manifest
+  ansible.builtin.get_url:
+    url: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ addons.metallb.version }}/config/manifests/metallb-native.yaml
+    dest: /tmp/metallb.yaml
+    mode: '0644'
+
+- name: Apply MetalLB manifest
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/metallb.yaml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+
+- name: Wait for MetalLB controller to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: metallb-system
+    label_selectors:
+      - app=metallb
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: metallb_pods
+  until: >
+    metallb_pods.resources | length > 0 and
+    (
+      metallb_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | map(attribute='status.containerStatuses')
+      | map('map', attribute='ready')
+      | map('min')
+      | list
+      | min
+    )
+  retries: 20
+  delay: 15
+  ignore_errors: true
+
+- name: Configure MetalLB IP address pool
+  ansible.builtin.template:
+    src: metallb-config.yaml.j2
+    dest: /tmp/metallb-config.yaml
+
+- name: Apply MetalLB configuration
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/metallb-config.yaml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"

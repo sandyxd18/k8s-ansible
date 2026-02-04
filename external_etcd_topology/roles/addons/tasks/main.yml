@@ -1,0 +1,28 @@
+---
+- name: Install Helm
+  include_tasks: helm.yml
+  when: addons.helm.enabled | bool
+
+- name: Install MetalLB
+  include_tasks: metallb.yml
+  when: addons.metallb.enabled | bool
+
+- name: Install OpenEBS
+  include_tasks: openebs.yml
+  when: addons.openebs.enabled | bool
+
+- name: Install Metrics Server
+  include_tasks: metrics-server.yml
+  when: addons.metrics_server.enabled | bool
+
+- name: Install ArgoCD
+  include_tasks: argocd.yml
+  when: addons.argocd.enabled | bool
+
+- name: Install Longhorn
+  include_tasks: longhorn.yml
+  when: addons.longhorn.enabled | bool
+
+- name: Install Istio
+  include_tasks: istio.yml
+  when: addons.istio.enabled | bool

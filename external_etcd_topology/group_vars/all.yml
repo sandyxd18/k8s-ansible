@@ -1,0 +1,73 @@
+---
+# Kubernetes Configuration
+kubernetes_version: "1.28.0"
+kubernetes_version_rhel_package: "1.28.0-0"
+
+cluster_name: "example-test"
+
+# Pod Network CIDR
+service_network_cidr: "10.96.0.0/12"
+pod_network_cidr: "10.244.0.0/16"
+lb_ip: "10.0.0.110"
+control_plane_endpoint: "{{ lb_ip }}:6443"
+apiserver_advertise_address: "10.0.0.100"
+vip_prefix: "24"
+
+# CNI Plugin Selection (calico, flannel, weave, cilium)
+cni_plugin: "calico"
+
+# Calico specific settings
+calico_version: "v3.26.1"
+
+# Flannel specific settings
+flannel_version: "v0.22.0"
+
+# Cilium specific settings
+cilium_version: "1.18.6"
+
+# Addons Configuration
+addons:
+  # Helm
+  helm:
+    enabled: false
+    version: "v3.17.3"
+  
+  # MetalLB Load Balancer
+  metallb:
+    enabled: false
+    version: "v0.13.10"
+    ip_range: "192.168.1.240-192.168.1.250"
+  
+  # OpenEBS Storage Provider
+  openebs:
+    enabled: false
+    # version: "3.7.0"
+  
+  # Metrics Server
+  metrics_server:
+    enabled: false
+    version: "v0.8.0"
+
+  # ArgoCD non-HA
+  argocd:
+    enabled: false
+    version: "v3.2.5"
+
+# Containerd Configuration (containerd, docker, cri-o)
+container_runtime: "containerd"
+crio_version: "v1.35"
+
+# System Configuration
+disable_swap: true
+enable_ipv4_forwarding: true
+
+# Firewall Configuration (for firewalld on RHEL/CentOS)
+configure_firewall: false
+
+keepalived_vrid: 51
+keepalived_interface: eth0
+keepalived_auth_pass: "ChangeThisSecret!"
+
+# ETCD Configuration
+etcd_peer_port: 2380
+etcd_client_port: 2379
