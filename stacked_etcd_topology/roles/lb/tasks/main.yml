@@ -49,12 +49,6 @@
     mode: '0644'
   notify: Restart keepalived
 
-- name: Install HAProxy health check script
-  template:
-    src: haproxy_check.sh.j2
-    dest: /usr/local/bin/haproxy_check.sh
-    mode: '0755'
-
 - name: Enable and start HAProxy
   systemd:
     name: haproxy
