@@ -20,39 +20,6 @@
       deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/deb/ /
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Add CRI-O yum repository (RedHat/CentOS)
-  copy:
-    dest: /etc/yum.repos.d/cri-o.repo
-    content: |
-      [cri-o]
-      name=CRI-O
-      baseurl=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/rpm/
-      enabled=1
-      gpgcheck=1
-      gpgkey=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/rpm/repodata/repomd.xml.key
-  when: 
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Install packages dependencies (RedHat/CentOS)
-  dnf:
-    name: container-selinux
-    state: latest
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Install CRI-O (RedHat/CentOS)
-  dnf:
-    name:
-      - cri-o
-      - cri-o-runc
-      - cri-tools
-    state: latest
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
 - name: Install CRI-O (Ubuntu)
   apt:
     name:
@@ -63,7 +30,7 @@
     update_cache: yes
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Enable kubelet service
+- name: Enable cri-o service
   systemd:
     name: cri-o
     enabled: yes

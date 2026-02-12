@@ -19,34 +19,6 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Install required packages (CentOS)
-  yum:
-    name:
-      - yum-utils
-      - device-mapper-persistent-data
-      - lvm2
-      - curl
-      - net-tools
-      - vim
-    state: present
-  when: 
-    - ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Install required packages (RedHat)
-  dnf:
-    name:
-      - yum-utils
-      - device-mapper-persistent-data
-      - lvm2
-      - curl
-      - net-tools
-      - vim
-    state: present
-  when: 
-    - ansible_facts['distribution'] == 'RedHat'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
 - name: Disable swap
   shell: swapoff -a
   when: disable_swap | bool
@@ -103,34 +75,3 @@
 - name: Apply sysctl
   command: sysctl --system
   when: container_runtime | default('') == "containerd" or container_runtime == "cri-o"
-
-- name: Configure firewall for Kubernetes (firewalld)
-  firewalld:
-    port: "{{ item }}"
-    permanent: yes
-    state: enabled
-    immediate: yes
-  loop:
-    - 6443/tcp
-    - 2379-2380/tcp
-    - 10250/tcp
-    - 10251/tcp
-    - 10252/tcp
-  when: 
-    - configure_firewall | bool
-    - ansible_facts['distribution'] == "RedHat" or ansible_facts['distribution'] == 'CentOS'
-    - "'master' in group_names"
-
-- name: Configure firewall for worker nodes (firewalld)
-  firewalld:
-    port: "{{ item }}"
-    permanent: yes
-    state: enabled
-    immediate: yes
-  loop:
-    - 10250/tcp
-    - 30000-32767/tcp
-  when: 
-    - configure_firewall | bool
-    - ansible_facts['distribution'] == "RedHat" or ansible_facts['distribution'] == 'CentOS'
-    - "'workers' in group_names"

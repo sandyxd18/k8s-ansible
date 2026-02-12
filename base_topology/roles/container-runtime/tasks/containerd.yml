@@ -51,34 +51,6 @@
     update_cache: yes
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Install DNF Plugin
-  dnf:
-    name: dnf-plugins-core
-    state: present
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Add Docker CE repo (RedHat/CentOS)
-  yum_repository:
-    name: docker-ce
-    description: Docker CE Stable - $basearch
-    baseurl: https://download.docker.com/linux/rhel/$releasever/$basearch/stable
-    enabled: yes
-    gpgcheck: yes
-    gpgkey: https://download.docker.com/linux/rhel/gpg
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Install containerd (RedHat/CentOS)
-  dnf:
-    name: containerd.io
-    state: present
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
 - name: Create containerd config directory
   file:
     path: /etc/containerd

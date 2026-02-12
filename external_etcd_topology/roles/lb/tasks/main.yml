@@ -15,18 +15,6 @@
     state: present
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Install HAProxy & KeepAlived (RHEL/CentOS 8)
-  ansible.builtin.dnf:
-    name:
-      - haproxy
-      - keepalived
-      - iproute
-      - iputils
-    state: present
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
 - name: Configure sysctl parameters for HAProxy and KeepAlived
   copy:
     dest: /etc/sysctl.d/haproxy.conf
@@ -48,12 +36,6 @@
     dest: /etc/keepalived/keepalived.conf
     mode: '0644'
   notify: Restart keepalived
-
-- name: Install HAProxy health check script
-  template:
-    src: haproxy_check.sh.j2
-    dest: /usr/local/bin/haproxy_check.sh
-    mode: '0755'
 
 - name: Enable and start HAProxy
   systemd:

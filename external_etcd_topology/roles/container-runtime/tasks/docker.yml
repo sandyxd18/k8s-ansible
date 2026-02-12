@@ -41,51 +41,11 @@
     update_cache: yes
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Install DNF Plugin
-  dnf:
-    name: dnf-plugins-core
-    state: present
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Add Docker CE repo (RedHat/CentOS)
-  yum_repository:
-    name: docker-ce
-    description: Docker CE Stable - $basearch
-    baseurl: https://download.docker.com/linux/rhel/$releasever/$basearch/stable
-    enabled: yes
-    gpgcheck: yes
-    gpgkey: https://download.docker.com/linux/rhel/gpg
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
-- name: Install Docker (RedHat/CentOS)
-  dnf:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-    state: present
-  when:
-    - ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
-
 - name: Create Docker daemon directory
   file:
     path: /etc/docker/
     state: directory
     mode: '0755'
-
-- name: Create Docker daemon (CentOS)
-  template:
-    src: centos-daemon.json.j2
-    dest: /etc/docker/daemon.json
-    mode: "0644"
-  when: 
-    - ansible_facts['distribution'] == 'CentOS'
-    - ansible_facts['lsb']['major_release'] | int >= 8
 
 - name: Create Docker daemon (Ubuntu)
   template:
@@ -100,7 +60,7 @@
     state: directory
     mode: '0755'
 
-- name: Enable and start containerd service
+- name: Enable and start Docker service
   systemd:
     name: docker
     enabled: yes
