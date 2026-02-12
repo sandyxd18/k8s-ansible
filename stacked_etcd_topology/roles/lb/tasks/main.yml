@@ -1,20 +1,4 @@
 ---
-- name: Update package cache
-  ansible.builtin.apt:
-    update_cache: yes
-    cache_valid_time: 3600
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Install HAProxy & KeepAlived
-  ansible.builtin.apt:
-    name: 
-    - haproxy
-    - keepalived
-    - iproute2
-    - iputils-ping
-    state: present
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
 - name: Install HAProxy & KeepAlived (RHEL/CentOS 8)
   ansible.builtin.dnf:
     name:

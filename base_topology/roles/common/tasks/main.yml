@@ -1,24 +1,4 @@
 ---
-- name: Update apt cache (Debian/Ubuntu)
-  apt:
-    update_cache: yes
-    cache_valid_time: 3600
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Install required packages (Debian/Ubuntu)
-  apt:
-    name:
-      - apt-transport-https
-      - ca-certificates
-      - curl
-      - gnupg
-      - lsb-release
-      - software-properties-common
-      - net-tools
-      - vim
-    state: present
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Ubuntu'
-
 - name: Install required packages (CentOS)
   yum:
     name:
