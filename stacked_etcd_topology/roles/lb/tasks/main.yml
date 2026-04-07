@@ -1,4 +1,10 @@
 ---
+- name: Ensure remote tmp directory exists
+  file:
+    path: /tmp/.ansible/tmp
+    state: directory
+    mode: '1777'
+
 - name: Update package cache
   ansible.builtin.apt:
     update_cache: yes
@@ -7,7 +13,7 @@
 
 - name: Install HAProxy & KeepAlived
   ansible.builtin.apt:
-    name: 
+    name:
     - haproxy
     - keepalived
     - iproute2
@@ -21,21 +27,33 @@
     content: |
       net.ipv4.ip_nonlocal_bind = 1
     mode: '0644'
-  notify: Apply sysctl
+
+- name: apply sysctl
+  command: sysctl --system
 
 - name: Configure HAProxy
   template:
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
     mode: '0644'
-  notify: Restart haproxy
+
+- name: restart haproxy
+  systemd:
+    name: haproxy
+    state: restarted
+    enabled: yes
 
 - name: Configure KeepAlived
   template:
     src: keepalived.conf.j2
     dest: /etc/keepalived/keepalived.conf
     mode: '0644'
-  notify: Restart keepalived
+
+- name: restart keepalived
+  systemd:
+    name: keepalived
+    state: restarted
+    enabled: yes
 
 - name: Enable and start HAProxy
   systemd:
@@ -43,7 +61,7 @@
     state: started
     enabled: yes
 
-- name: Enable and start Keepalived
+- name: Enable and start KeepAlived
   systemd:
     name: keepalived
     state: started

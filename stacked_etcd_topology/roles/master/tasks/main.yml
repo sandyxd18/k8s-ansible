@@ -77,7 +77,7 @@
 
 - name: Fetch worker join command
   fetch:
-    src: /tmp/kubeadm_join_worker.sh
+    src: /tmp/kubernetes_join_command.sh
     dest: ./kubeadm_join_worker.sh
     flat: yes
 

@@ -14,19 +14,17 @@
     - kubernetes
   
 - name: Setup Kubernetes Master
-  hosts: masters
+  hosts: "{{ groups['masters'][0] }}"
   gather_facts: true
   roles:
     - master
     - cni
-  when: inventory_hostname == groups['masters'][0]
 
 - name: Join Master Nodes
-  hosts: masters
+  hosts: masters[1:]
   gather_facts: true
   roles:
     - master-join
-  when: inventory_hostname != groups['masters'][0]
 
 - name: Join Worker Nodes
   hosts: workers
@@ -35,8 +33,7 @@
     - worker
 
 - name: Deploy Addons
-  hosts: masters
+  hosts: "{{ groups['masters'][0] }}"
   gather_facts: true
   roles:
     - addons
-  when: inventory_hostname == groups['masters'][0]
