@@ -1,0 +1,39 @@
+---
+- name: Download Metrics Server manifest
+  get_url:
+    url: "https://github.com/kubernetes-sigs/metrics-server/releases/download/{{ addons.metrics_server.version }}/components.yaml"
+    dest: /tmp/metrics-server.yaml
+    mode: '0644'
+
+- name: Patch Metrics Server for insecure TLS (for testing environments)
+  command: |
+    sed -i 's/- args:/- args:\n        - --kubelet-insecure-tls/' /tmp/metrics-server.yaml
+
+- name: Apply Metrics Server
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/metrics-server.yaml
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+
+- name: Wait for Metrics Server to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: kube-system
+    label_selectors:
+      - k8s-app=metrics-server
+    kubeconfig: "{{ ssh_user_home }}/.kube/config"
+  register: metrics_pods
+  until: >
+    metrics_pods.resources | length > 0 and
+    (
+      metrics_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | map(attribute='status.containerStatuses')
+      | map('map', attribute='ready')
+      | map('min')
+      | list
+      | min
+    )
+  retries: 20
+  delay: 15
+  ignore_errors: true

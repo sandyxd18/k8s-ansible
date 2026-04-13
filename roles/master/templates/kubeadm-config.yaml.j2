@@ -1,0 +1,23 @@
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+cgroupDriver: systemd
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+networking:
+  servicesSubnet: "{{ service_network_cidr }}"
+  podSubnet: "{{ pod_network_cidr }}"
+controlPlaneEndpoint: "{{ control_plane_endpoint }}"
+apiServer:
+  certSANs:
+    - "{{ apiserver_advertise_address }}"
+clusterName: "{{ cluster_name }}"
+etcd:
+  external:
+    endpoints:
+      {% for host in groups['etcd'] %}
+      - https://{{ hostvars[host].ansible_host }}:{{ etcd_client_port }}
+      {% endfor %}
+    caFile: /etc/kubernetes/pki/etcd/ca.crt
+    certFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
+    keyFile: /etc/kubernetes/pki/apiserver-etcd-client.key

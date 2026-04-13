@@ -1,0 +1,44 @@
+---
+- name: Create etcd certs directory
+  file:
+    path: /etc/kubernetes/pki/etcd/
+    state: directory
+    mode: '0755'
+
+- name: Move etcd CA cert to /etc/kubernetes/pki/etcd
+  command: >
+    mv {{ ssh_user_home }}/etcd-ca.crt
+    /etc/kubernetes/pki/etcd/ca.crt
+
+- name: Move certs to /etc/kubernetes/pki
+  command: >
+    mv {{ ssh_user_home }}/{{ item }}
+    /etc/kubernetes/pki/{{ item }}
+  loop:
+    - ca.crt
+    - ca.key
+    - sa.pub
+    - sa.key
+    - front-proxy-ca.crt
+    - front-proxy-ca.key
+
+- name: Check if control plane node is already joined
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_conf
+
+- name: Copy control plane join command to node
+  copy:
+    src: ./kubeadm_join_control_plane.sh
+    dest: /tmp/kubeadm_join_control_plane.sh
+    mode: '0700'
+  when: not kubeadm_conf.stat.exists
+
+- name: Join control plane node to cluster
+  command: bash /tmp/kubeadm_join_control_plane.sh
+  when: not kubeadm_conf.stat.exists
+
+- name: Remove control plane join command file
+  file:
+    path: /tmp/kubeadm_join_control_plane.sh
+    state: absent
