@@ -1,3 +1,0 @@
----
-- name: Install CNI plugin
-  include_tasks: "{{ cni_plugin }}.yml"
