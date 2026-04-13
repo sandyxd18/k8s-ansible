@@ -1,2 +1,0 @@
-keepalived_state: BACKUP
-keepalived_priority: 100
