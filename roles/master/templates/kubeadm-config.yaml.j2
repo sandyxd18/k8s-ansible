@@ -11,7 +11,11 @@ controlPlaneEndpoint: "{{ control_plane_endpoint }}"
 apiServer:
   certSANs:
     - "{{ apiserver_advertise_address }}"
+{% if cluster_topology in ['stacked_etcd', 'external_etcd'] %}
+    - "{{ lb_ip }}"
+{% endif %}
 clusterName: "{{ cluster_name }}"
+{% if cluster_topology == 'external_etcd' %}
 etcd:
   external:
     endpoints:
@@ -21,3 +25,4 @@ etcd:
     caFile: /etc/kubernetes/pki/etcd/ca.crt
     certFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
     keyFile: /etc/kubernetes/pki/apiserver-etcd-client.key
+{% endif %}

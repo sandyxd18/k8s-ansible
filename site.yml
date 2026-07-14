@@ -1,12 +1,34 @@
 ---
+# =============================================================================
+# KUBERNETES ANSIBLE INSTALLER
+# Mendukung 3 skenario instalasi berdasarkan variabel cluster_topology:
+#   - base          : Single control-plane
+#   - stacked_etcd  : HA control-plane dengan etcd stacked di master
+#   - external_etcd : HA control-plane dengan etcd di node terpisah
+#
+# Cara menjalankan:
+#   ansible-playbook site.yml -i inventory/base
+#   ansible-playbook site.yml -i inventory/stacked_etcd
+#   ansible-playbook site.yml -i inventory/external_etcd
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# PLAY 1: Setup HAProxy Load Balancer
+# Hanya berjalan untuk skenario: stacked_etcd, external_etcd
+# -----------------------------------------------------------------------------
 - name: Setup HAProxy Load Balancer
   hosts: load_balancers
   gather_facts: true
+  when: cluster_topology in ['stacked_etcd', 'external_etcd']
   roles:
     - role: lb
       tags:
         - lb
 
+# -----------------------------------------------------------------------------
+# PLAY 2: Prepare all nodes (common, container-runtime, kubernetes packages)
+# Berjalan untuk semua skenario
+# -----------------------------------------------------------------------------
 - name: Prepare all nodes
   hosts: k8s_cluster
   gather_facts: true
@@ -21,14 +43,23 @@
       tags:
         - kubernetes
 
+# -----------------------------------------------------------------------------
+# PLAY 3: Setup External ETCD Nodes
+# Hanya berjalan untuk skenario: external_etcd
+# -----------------------------------------------------------------------------
 - name: Setup ETCD Nodes
   hosts: etcd
   gather_facts: true
+  when: cluster_topology == 'external_etcd'
   roles:
     - role: etcd
       tags:
         - etcd
 
+# -----------------------------------------------------------------------------
+# PLAY 4: Initialize Kubernetes Master (control-plane node pertama)
+# Berjalan untuk semua skenario — selalu di masters[0]
+# -----------------------------------------------------------------------------
 - name: Setup Kubernetes Master
   hosts: masters
   gather_facts: true
@@ -41,15 +72,25 @@
         - cni
   when: inventory_hostname == groups['masters'][0]
 
+# -----------------------------------------------------------------------------
+# PLAY 5: Join Additional Control-Plane Nodes
+# Hanya berjalan untuk skenario: stacked_etcd, external_etcd
+# -----------------------------------------------------------------------------
 - name: Join Master Nodes
   hosts: masters
   gather_facts: true
+  when:
+    - cluster_topology in ['stacked_etcd', 'external_etcd']
+    - inventory_hostname != groups['masters'][0]
   roles:
     - role: master-join
       tags:
         - master-join
-  when: inventory_hostname != groups['masters'][0]
 
+# -----------------------------------------------------------------------------
+# PLAY 6: Join Worker Nodes
+# Berjalan untuk semua skenario
+# -----------------------------------------------------------------------------
 - name: Join Worker Nodes
   hosts: workers
   gather_facts: true
@@ -58,6 +99,10 @@
       tags:
         - worker
 
+# -----------------------------------------------------------------------------
+# PLAY 7: Deploy Addons
+# Berjalan untuk semua skenario — selalu dari masters[0]
+# -----------------------------------------------------------------------------
 - name: Deploy Addons
   hosts: masters
   gather_facts: true

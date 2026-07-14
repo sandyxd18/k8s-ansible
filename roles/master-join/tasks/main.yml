@@ -1,16 +1,36 @@
 ---
-- name: Create etcd certs directory
+# =============================================================================
+# TASK: Join Additional Control-Plane Nodes (master-join)
+# Berlaku untuk skenario: stacked_etcd, external_etcd
+# Perbedaan:
+#   - external_etcd : Memindahkan PKI dari master pertama sebelum join
+#   - stacked_etcd  : Langsung join dengan control plane join command
+# =============================================================================
+
+- name: Get SSH user home directory from system
+  command: getent passwd {{ ansible_user }}
+  register: passwd_entry
+  changed_when: false
+
+- name: Set SSH user home fact
+  set_fact:
+    ssh_user_home: "{{ passwd_entry.stdout.split(':')[5] }}"
+
+# --- External ETCD: Pindahkan PKI yang sudah didistribusikan dari master pertama ---
+- name: "[external_etcd] Create etcd certs directory"
   file:
     path: /etc/kubernetes/pki/etcd/
     state: directory
     mode: '0755'
+  when: cluster_topology == 'external_etcd'
 
-- name: Move etcd CA cert to /etc/kubernetes/pki/etcd
+- name: "[external_etcd] Move etcd CA cert to /etc/kubernetes/pki/etcd"
   command: >
     mv {{ ssh_user_home }}/etcd-ca.crt
     /etc/kubernetes/pki/etcd/ca.crt
+  when: cluster_topology == 'external_etcd'
 
-- name: Move certs to /etc/kubernetes/pki
+- name: "[external_etcd] Move Kubernetes PKI certs to /etc/kubernetes/pki"
   command: >
     mv {{ ssh_user_home }}/{{ item }}
     /etc/kubernetes/pki/{{ item }}
@@ -21,7 +41,9 @@
     - sa.key
     - front-proxy-ca.crt
     - front-proxy-ca.key
+  when: cluster_topology == 'external_etcd'
 
+# --- Join control-plane node ke cluster ---
 - name: Check if control plane node is already joined
   stat:
     path: /etc/kubernetes/admin.conf

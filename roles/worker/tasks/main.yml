@@ -1,4 +1,11 @@
 ---
+# =============================================================================
+# TASK: Join Worker Nodes
+# Berlaku untuk semua skenario (base, stacked_etcd, external_etcd)
+# Join command di-generate oleh role master dan di-fetch ke local machine
+# sebagai file ./kubeadm_join_worker.sh
+# =============================================================================
+
 - name: Check if worker node is already joined
   stat:
     path: /etc/kubernetes/kubelet.conf

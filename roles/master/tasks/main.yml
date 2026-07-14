@@ -1,23 +1,45 @@
 ---
-- name: Create etcd certs directory
+# =============================================================================
+# TASK: Setup Kubernetes Master (Control-Plane Initialization)
+# Berlaku untuk semua skenario, dengan perbedaan kondisional:
+#   - external_etcd : Memindahkan sertifikat etcd sebelum kubeadm init
+#   - stacked_etcd  : Upload certs + generate join command untuk control plane
+#   - base          : kubeadm init sederhana tanpa HA tasks
+# =============================================================================
+
+- name: Get SSH user home directory from system
+  command: getent passwd {{ ansible_user }}
+  register: passwd_entry
+  changed_when: false
+
+- name: Set SSH user home fact
+  set_fact:
+    ssh_user_home: "{{ passwd_entry.stdout.split(':')[5] }}"
+
+# --- External ETCD: Pindahkan sertifikat etcd ke lokasi yang diharapkan kubeadm ---
+- name: "[external_etcd] Create etcd certs directory on master"
   file:
     path: /etc/kubernetes/pki/etcd/
     state: directory
     mode: '0755'
+  when: cluster_topology == 'external_etcd'
 
-- name: Move etcd CA cert to /etc/kubernetes/pki/etcd
+- name: "[external_etcd] Move etcd CA cert to /etc/kubernetes/pki/etcd"
   command: >
     mv {{ ssh_user_home }}/ca.crt
     /etc/kubernetes/pki/etcd/ca.crt
+  when: cluster_topology == 'external_etcd'
 
-- name: Move certs to /etc/kubernetes/pki
+- name: "[external_etcd] Move apiserver-etcd-client certs to /etc/kubernetes/pki"
   command: >
     mv {{ ssh_user_home }}/{{ item }}
     /etc/kubernetes/pki/{{ item }}
   loop:
     - apiserver-etcd-client.crt
     - apiserver-etcd-client.key
+  when: cluster_topology == 'external_etcd'
 
+# --- Inisialisasi Kubernetes Cluster ---
 - name: Check if Kubernetes is already initialized
   stat:
     path: /etc/kubernetes/admin.conf
@@ -35,15 +57,7 @@
   when: not kubeadm_init.stat.exists
   register: kubeadm_init_output
 
-# - name: Get SSH user home directory from system
-#   command: getent passwd {{ ansible_user }}
-#   register: passwd_entry
-#   changed_when: false
-
-# - name: Set SSH user home fact
-#   set_fact:
-#     ssh_user_home: "{{ passwd_entry.stdout.split(':')[5] }}"
-
+# --- Setup kubeconfig untuk SSH user ---
 - name: Ensure .kube directory exists for SSH user
   file:
     path: "{{ ssh_user_home }}/.kube"
@@ -61,52 +75,61 @@
     group: "{{ ansible_user }}"
     mode: '0644'
 
-- name: Upload certs and get certificate key
+# --- HA: Upload certs dan generate join command untuk additional masters ---
+- name: "[stacked_etcd | external_etcd] Upload certs and get certificate key"
   command: kubeadm init phase upload-certs --upload-certs
   register: cert_key_output
   changed_when: false
+  when: cluster_topology in ['stacked_etcd', 'external_etcd']
 
-- name: Extract certificate key
+- name: "[stacked_etcd | external_etcd] Extract certificate key"
   set_fact:
     kubeadm_certificate_key: "{{ cert_key_output.stdout_lines | last }}"
+  when: cluster_topology in ['stacked_etcd', 'external_etcd']
 
-- name: Generate join command
+- name: Generate worker join command
   shell: kubeadm token create --print-join-command
   register: join_command_output
   changed_when: false
 
-- name: Generate control plane join command
+- name: "[stacked_etcd | external_etcd] Generate control plane join command"
   set_fact:
     control_plane_join_command: >-
       {{ join_command_output.stdout }}
       --control-plane
       --certificate-key {{ kubeadm_certificate_key }}
+  when: cluster_topology in ['stacked_etcd', 'external_etcd']
 
-- name: Save join command to file
+# --- Simpan join command ke file ---
+- name: Save worker join command to file
   copy:
     content: "{{ join_command_output.stdout }}"
-    dest: /tmp/kubernetes_join_command.sh
+    dest: /tmp/kubeadm_join_worker.sh
     mode: '0755'
 
-- name: Save control plane join command to file
+- name: "[stacked_etcd | external_etcd] Save control plane join command to file"
   copy:
     content: "{{ control_plane_join_command }}"
     dest: /tmp/kubeadm_join_control_plane.sh
     mode: '0700'
+  when: cluster_topology in ['stacked_etcd', 'external_etcd']
 
-- name: Fetch worker join command
+# --- Fetch join command ke controller (local machine) ---
+- name: Fetch worker join command to local machine
   fetch:
     src: /tmp/kubeadm_join_worker.sh
     dest: ./kubeadm_join_worker.sh
     flat: yes
 
-- name: Fetch control plane join command
+- name: "[stacked_etcd | external_etcd] Fetch control plane join command to local machine"
   fetch:
     src: /tmp/kubeadm_join_control_plane.sh
     dest: ./kubeadm_join_control_plane.sh
     flat: yes
+  when: cluster_topology in ['stacked_etcd', 'external_etcd']
 
-- name: Distribute Kubernetes PKI to other control plane nodes
+# --- External ETCD: Distribusi PKI ke additional master nodes ---
+- name: "[external_etcd] Distribute Kubernetes PKI to other control plane nodes"
   synchronize:
     src: "/etc/kubernetes/pki/{{ item.file }}"
     dest: "{{ ssh_user_home }}/{{ item.dest | default(item.file) }}"
@@ -123,3 +146,4 @@
     - { file: "etcd/ca.crt", dest: "etcd-ca.crt" }
   delegate_to: "{{ groups['masters'][0] }}"
   run_once: true
+  when: cluster_topology == 'external_etcd'
