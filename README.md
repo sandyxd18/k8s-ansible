@@ -1,48 +1,29 @@
-# Kubernetes Ansible Installer
+# Kubernetes Cluster Bootstrapper with Ansible
 
-Ansible playbook untuk instalasi Kubernetes yang mendukung **3 skenario topologi** dalam satu repository.
+Ansible playbook to automate Kubernetes cluster installation, supporting **three deployment topologies** in a single repository.
 
 ---
 
-## Skenario yang Didukung
+## Supported Scenarios
 
-| Skenario | Deskripsi | Cocok Untuk |
+This project supports three Kubernetes deployment topologies, ranging from a simple single-node setup for development purposes to a fully fault-tolerant production-grade HA cluster. Choose the scenario that best fits your infrastructure needs.
+
+| Scenario | Description | Best For |
 |---|---|---|
-| `base` | Single control-plane, tanpa High Availability | Development / Lab |
-| `stacked_etcd` | HA control-plane, etcd stack bersama master | Production HA sederhana |
-| `external_etcd` | HA control-plane, etcd di node terpisah | Production HA penuh |
+| `base` | Single control-plane, no High Availability | Development / Lab |
+| `stacked_etcd` | HA control-plane, etcd stacked with master nodes | Simple Production HA |
+| `external_etcd` | HA control-plane, etcd on dedicated nodes | Full Production HA |
 
-### Topologi `base`
-```
-[masters]          [workers]
-  master  ──────── worker1
-                   worker2
-                   worker3
-```
-
-### Topologi `stacked_etcd`
-```
-[load_balancers]   [masters]          [workers]
-   lb1 (VIP) ─┬── master1 (etcd)     worker1
-   lb2        └── master2 (etcd) ─── worker2
-```
-
-### Topologi `external_etcd`
-```
-[load_balancers]   [masters]     [etcd]      [workers]
-   lb1 (VIP) ─┬── master1       etcd1        worker1
-   lb2        └── master2 ───── etcd2 ─────  worker2
-                                etcd3
-```
+![Kubernetes Cluster Bootstrapper with Ansible](docs/topology.png)
 
 ---
 
-## Prasyarat
+## Prerequisites
 
 - Ansible >= 2.12
 - Python >= 3.8
-- SSH akses ke semua node
-- Node berbasis Ubuntu 20.04/22.04 atau Debian 11/12
+- SSH access to all nodes
+- Nodes running Ubuntu 20.04/22.04 or Debian 11/12
 
 ### Install Ansible Dependencies
 ```bash
@@ -51,96 +32,96 @@ ansible-galaxy install -r requirements.yaml
 
 ---
 
-## Cara Penggunaan
+## Usage
 
-### 1. Pilih Skenario
+### 1. Select a Scenario
 
-Edit variabel `cluster_topology` di `group_vars/all.yml`:
+Edit the `cluster_topology` variable in `group_vars/all.yml`:
 
 ```yaml
-# Pilih salah satu: base | stacked_etcd | external_etcd
+# Choose one of: base | stacked_etcd | external_etcd
 cluster_topology: "base"
 ```
 
-### 2. Sesuaikan Inventory
+### 2. Configure the Inventory
 
-Edit file inventory sesuai skenario yang dipilih:
+Edit the inventory file for your chosen scenario:
 
-| Skenario | File Inventory |
+| Scenario | Inventory File |
 |---|---|
 | `base` | `inventory/base` |
 | `stacked_etcd` | `inventory/stacked_etcd` |
 | `external_etcd` | `inventory/external_etcd` |
 
-### 3. Sesuaikan Variabel
+### 3. Configure Variables
 
-Edit `group_vars/all.yml` sesuai kebutuhan:
+Edit `group_vars/all.yml` to match your environment:
 
 ```yaml
-# Untuk skenario base
+# For base scenario
 apiserver_advertise_address: "192.168.1.10"
 
-# Untuk skenario stacked_etcd / external_etcd
+# For stacked_etcd / external_etcd scenarios
 lb_ip: "10.0.0.110"
 vip_prefix: "24"
 keepalived_interface: "eth0"
 ```
 
-Untuk skenario `stacked_etcd` / `external_etcd`, sesuaikan juga `host_vars/`:
+For `stacked_etcd` / `external_etcd` scenarios, also configure `host_vars/`:
 - `host_vars/k8s-lb1.yml` — `keepalived_state: MASTER`, `keepalived_priority: 150`
 - `host_vars/k8s-lb2.yml` — `keepalived_state: BACKUP`, `keepalived_priority: 100`
 
-### 4. Jalankan Playbook
+### 4. Run the Playbook
 
 ```bash
-# Skenario base
+# Base scenario
 ansible-playbook site.yml -i inventory/base
 
-# Skenario stacked_etcd
+# Stacked etcd scenario
 ansible-playbook site.yml -i inventory/stacked_etcd
 
-# Skenario external_etcd
+# External etcd scenario
 ansible-playbook site.yml -i inventory/external_etcd
 ```
 
-### Menjalankan Sebagian (Tags)
+### Run with Specific Tags
 
 ```bash
-# Hanya install common + container runtime
+# Only install common packages and container runtime
 ansible-playbook site.yml -i inventory/base --tags "common,container-runtime"
 
-# Hanya deploy addons
+# Only deploy addons
 ansible-playbook site.yml -i inventory/base --tags addons
 ```
 
 ---
 
-## Konfigurasi
+## Configuration
 
 ### Kubernetes
 
-| Variabel | Default | Deskripsi |
+| Variable | Default | Description |
 |---|---|---|
-| `kubernetes_version` | `1.28.0` | Versi Kubernetes |
-| `cluster_name` | `example-test` | Nama cluster |
-| `pod_network_cidr` | `10.244.0.0/16` | CIDR jaringan Pod |
-| `service_network_cidr` | `10.96.0.0/12` | CIDR Service |
+| `kubernetes_version` | `1.28.0` | Kubernetes version |
+| `cluster_name` | `example-test` | Cluster name |
+| `pod_network_cidr` | `10.244.0.0/16` | Pod network CIDR |
+| `service_network_cidr` | `10.96.0.0/12` | Service network CIDR |
 
 ### CNI Plugin
 
-| Variabel | Default | Pilihan |
+| Variable | Default | Options |
 |---|---|---|
 | `cni_plugin` | `calico` | `calico`, `flannel`, `cilium` |
 
 ### Container Runtime
 
-| Variabel | Default | Pilihan |
+| Variable | Default | Options |
 |---|---|---|
 | `container_runtime` | `containerd` | `containerd`, `docker`, `cri-o` |
 
-### Addons (Berlaku untuk Semua Skenario)
+### Addons (Available for All Scenarios)
 
-Aktifkan addon di `group_vars/all.yml`:
+Enable addons in `group_vars/all.yml`:
 
 ```yaml
 addons:
@@ -168,24 +149,26 @@ addons:
 
 ---
 
-## Struktur Proyek
+## Project Structure
 
 ```
 k8s-ansible/
 ├── ansible.cfg
-├── site.yml                    # Main playbook (multi-skenario)
+├── site.yml                    # Main playbook (multi-scenario)
 ├── requirements.yaml
+├── docs/
+│   └── topology.png            # Cluster topology diagram
 ├── inventory/
-│   ├── base                    # Inventory untuk skenario base
-│   ├── stacked_etcd            # Inventory untuk skenario stacked HA
-│   └── external_etcd           # Inventory untuk skenario external etcd HA
+│   ├── base                    # Inventory for base scenario
+│   ├── stacked_etcd            # Inventory for stacked HA scenario
+│   └── external_etcd           # Inventory for external etcd HA scenario
 ├── group_vars/
-│   └── all.yml                 # Semua variabel + cluster_topology selector
+│   └── all.yml                 # All variables + cluster_topology selector
 ├── host_vars/
-│   ├── k8s-lb1.yml             # Keepalived config untuk LB1 (MASTER)
-│   └── k8s-lb2.yml             # Keepalived config untuk LB2 (BACKUP)
+│   ├── k8s-lb1.yml             # Keepalived config for LB1 (MASTER)
+│   └── k8s-lb2.yml             # Keepalived config for LB2 (BACKUP)
 └── roles/
-    ├── common/                 # Prerequisite semua node
+    ├── common/                 # Prerequisite tasks for all nodes
     ├── container-runtime/      # Install containerd/docker/cri-o
     ├── kubernetes/             # Install kubeadm, kubelet, kubectl
     ├── lb/                     # Setup HAProxy + Keepalived (HA only)
