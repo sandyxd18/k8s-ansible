@@ -179,3 +179,35 @@ k8s-ansible/
     ├── cni/                    # Deploy CNI plugin
     └── addons/                 # Deploy optional addons
 ```
+
+---
+
+## Roadmap
+
+This project is inspired by [Kubespray](https://github.com/kubernetes-sigs/kubespray) — a production-ready Kubernetes cluster installer using Ansible. However, the long-term vision of this project goes beyond just cluster provisioning.
+
+### 🎯 End Goal
+
+Build a **self-hosted Kubernetes Managed Service** — similar to Amazon EKS or Google GKE — where users can provision and manage fully automated Kubernetes clusters without deep infrastructure expertise.
+
+---
+
+### Current Phase ✅
+- [x] Multi-scenario Kubernetes installer (Base, Stacked HA, External ETCD HA)
+- [x] Support for multiple CNI plugins (Calico, Flannel, Cilium)
+- [x] Support for multiple container runtimes (containerd, Docker, CRI-O)
+- [x] Optional addons: Helm, MetalLB, OpenEBS, Longhorn, Metrics Server, ArgoCD, Istio
+
+### Next Phase 🔜 — AI Infrastructure on Kubernetes
+- [ ] **GPU Node Support** — Automated NVIDIA GPU Operator installation and configuration
+- [ ] **AI-Optimized Playbooks** — Dedicated deployment scenarios for running AI/ML workloads on Kubernetes
+- [ ] **Model Serving Stack** — Automated deployment of model serving frameworks (e.g., Triton Inference Server, Ollama, vLLM)
+- [ ] **Distributed Training** — Support for Kubeflow and Ray for distributed AI model training
+- [ ] **Storage for AI** — High-performance storage class configuration optimized for large model weights
+
+### Future Phase 🔭 — Managed Kubernetes Service
+- [ ] **Cluster Lifecycle Management** — Create, upgrade, and delete clusters via a unified control plane
+- [ ] **Multi-cluster Support** — Manage multiple clusters from a single interface
+- [ ] **Self-service Portal** — Web UI / API for cluster provisioning (like EKS/GKE experience)
+- [ ] **Built-in Observability** — Pre-configured monitoring stack (Prometheus, Grafana, Loki)
+- [ ] **RBAC & Multi-tenancy** — Tenant isolation and access control for shared clusters
