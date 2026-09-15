@@ -19,7 +19,6 @@
 - name: Setup HAProxy Load Balancer
   hosts: load_balancers
   gather_facts: true
-  when: cluster_topology in ['stacked_etcd', 'external_etcd']
   roles:
     - role: lb
       tags:
@@ -50,7 +49,6 @@
 - name: Setup ETCD Nodes
   hosts: etcd
   gather_facts: true
-  when: cluster_topology == 'external_etcd'
   roles:
     - role: etcd
       tags:
@@ -61,7 +59,7 @@
 # Berjalan untuk semua skenario — selalu di masters[0]
 # -----------------------------------------------------------------------------
 - name: Setup Kubernetes Master
-  hosts: masters
+  hosts: masters[0]
   gather_facts: true
   roles:
     - role: master
@@ -70,7 +68,6 @@
     - role: cni
       tags:
         - cni
-  when: inventory_hostname == groups['masters'][0]
 
 # -----------------------------------------------------------------------------
 # PLAY 5: Join Additional Control-Plane Nodes
@@ -79,13 +76,13 @@
 - name: Join Master Nodes
   hosts: masters
   gather_facts: true
-  when:
-    - cluster_topology in ['stacked_etcd', 'external_etcd']
-    - inventory_hostname != groups['masters'][0]
   roles:
     - role: master-join
       tags:
         - master-join
+      when:
+        - cluster_topology in ['stacked_etcd', 'external_etcd']
+        - inventory_hostname != groups['masters'][0]
 
 # -----------------------------------------------------------------------------
 # PLAY 6: Join Worker Nodes
@@ -104,10 +101,9 @@
 # Berjalan untuk semua skenario — selalu dari masters[0]
 # -----------------------------------------------------------------------------
 - name: Deploy Addons
-  hosts: masters
+  hosts: masters[0]
   gather_facts: true
   roles:
     - role: addons
       tags:
         - addons
-  when: inventory_hostname == groups['masters'][0]

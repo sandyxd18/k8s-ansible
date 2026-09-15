@@ -1,0 +1,31 @@
+---
+- name: Generate etcd certs via kubeadm
+  command: >
+    kubeadm init phase certs {{ item.phase }}
+    --config=/tmp/{{ hostvars[target].ansible_host }}/kubeadmcfg.yaml
+  loop:
+    - { phase: "etcd-server" }
+    - { phase: "etcd-peer" }
+    - { phase: "etcd-healthcheck-client" }
+    - { phase: "apiserver-etcd-client" }
+
+- name: Copy PKI to temp directory
+  copy:
+    src: /etc/kubernetes/pki
+    dest: "/tmp/{{ hostvars[target].ansible_host }}/"
+    remote_src: yes
+
+- name: Cleanup non-reusable certs on primary host
+  find:
+    paths: /etc/kubernetes/pki
+    file_type: file
+    excludes:
+      - ca.crt
+      - ca.key
+  register: non_ca_files
+
+- name: Delete non-reusable certs
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ non_ca_files.files }}"
